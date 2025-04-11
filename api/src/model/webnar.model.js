@@ -1,4 +1,6 @@
-// Webinar Model - Optimized and Indexed
+const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
+
 const WebinarSchema = new Schema({
     title: {
       type: String,

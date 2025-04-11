@@ -1,4 +1,6 @@
-// Quiz Model - Optimized and Indexed
+const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
+
 const QuizSchema = new Schema({
     webinar: {
       type: Schema.Types.ObjectId,

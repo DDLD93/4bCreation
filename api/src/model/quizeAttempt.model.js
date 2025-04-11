@@ -1,3 +1,5 @@
+const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
 
 // Quiz Attempts Model - Optimized and Indexed
 const QuizAttemptSchema = new Schema({

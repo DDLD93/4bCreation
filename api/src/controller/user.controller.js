@@ -348,4 +348,4 @@ class UserController {
   }
 }
 
-module.exports = new EnumController();
+module.exports = new UserController();

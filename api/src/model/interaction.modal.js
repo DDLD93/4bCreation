@@ -1,4 +1,6 @@
-// Interactive Features Model - Optimized and Indexed
+const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
+
 const InteractionSchema = new Schema({
     webinar: {
       type: Schema.Types.ObjectId,

@@ -1,4 +1,7 @@
 // Analytics Model - For tracking and performance metrics
+const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
+
 const AnalyticsSchema = new Schema({
     webinar: {
       type: Schema.Types.ObjectId,

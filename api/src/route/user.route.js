@@ -114,19 +114,27 @@ module.exports = () => {
    *           schema:
    *             type: object
    *             required:
+   *               - otp
    *               - fullName
    *               - phone
    *               - email
    *               - unit
    *               - picture
+   *               - ministry
+   *               - department
+   *               - username
    *             properties:
    *               fullName:
    *                 type: string
    *               phone:
    *                 type: string
+   *               username :
+   *                 type: string
    *               email:
    *                 type: string
    *                 format: email
+   *               otp:
+   *                 type: string
    *               unit:
    *                 type: string
    *               picture:
@@ -164,18 +172,118 @@ module.exports = () => {
     }
   });
 
-  api.post("/register-admin", async (req, res) => {
-    try {
-      const body = req.body;
-      const { ok, data, message } = await AuthController.register(body, true);
-      if (!ok) throw new Error(message);
-      res.status(201).json({ ok, data, message });
-    } catch (error) {
-      res.status(400).json({ ok: false, message: error.message });
-    }
-  });
+  // /**
+  //  * @swagger
+  //  * /api/v1/user/register-admin:
+  //  *   post:
+  //  *     summary: Register a new admin user
+  //  *     description: Create a new admin account with the provided data (requires authorization)
+  //  *     tags: [Users]
+  //  *     security:
+  //  *       - bearerAuth: []
+  //  *     requestBody:
+  //  *       required: true
+  //  *       content:
+  //  *         application/json:
+  //  *           schema:
+  //  *             type: object
+  //  *             required:
+  //  *               - fullName
+  //  *               - phone
+  //  *               - email
+  //  *               - unit
+  //  *               - picture
+  //  *             properties:
+  //  *               fullName:
+  //  *                 type: string
+  //  *               phone:
+  //  *                 type: string
+  //  *               email:
+  //  *                 type: string
+  //  *                 format: email
+  //  *               unit:
+  //  *                 type: string
+  //  *               picture:
+  //  *                 type: string
+  //  *                 format: base64
+  //  *               state:
+  //  *                 type: string
+  //  *                 default: "Kaduna"
+  //  *               lga:
+  //  *                 type: string
+  //  *                 default: "Kudan"
+  //  *     responses:
+  //  *       201:
+  //  *         description: Admin user registered successfully
+  //  *         content:
+  //  *           application/json:
+  //  *             schema:
+  //  *               $ref: '#/components/schemas/UserResponse'
+  //  *       400:
+  //  *         description: Invalid input data or duplicate entry
+  //  *         content:
+  //  *           application/json:
+  //  *             schema:
+  //  *               $ref: '#/components/schemas/UserResponse'
+  //  *       401:
+  //  *         description: Unauthorized - Authentication required
+  //  *       403:
+  //  *         description: Forbidden - Insufficient permissions
+  //  */
+  // api.post("/register-admin", async (req, res) => {
+  //   try {
+  //     const body = req.body;
+  //     const { ok, data, message } = await AuthController.register(body, true);
+  //     if (!ok) throw new Error(message);
+  //     res.status(201).json({ ok, data, message });
+  //   } catch (error) {
+  //     res.status(400).json({ ok: false, message: error.message });
+  //   }
+  // });
 
-
+  /**
+   * @swagger
+   * /api/v1/user/verify-email:
+   *   post:
+   *     summary: Verify email address
+   *     description: Send a verification code to the provided email address
+   *     tags: [Users]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - email
+   *             properties:
+   *               email:
+   *                 type: string
+   *                 format: email
+   *     responses:
+   *       200:
+   *         description: Verification code sent successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok:
+   *                   type: boolean
+   *                 message:
+   *                   type: string
+   *       500:
+   *         description: Error sending verification code
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok:
+   *                   type: boolean
+   *                 message:
+   *                   type: string
+   */
   api.post("/verify-email", async (req, res) => {
     try {
       const { email } = req.body;
@@ -229,8 +337,8 @@ module.exports = () => {
    */
   api.post("/login", async (req, res) => {
     try {
-      const { email, password } = req.body;
-      const { ok, data, message } = await AuthController.login(email, password);
+      const { email, password, notificationId } = req.body;
+      const { ok, data, message } = await AuthController.login(email, password, notificationId);
       if (ok) {
         res.status(200).json({ ok, data });
       } else {
@@ -569,6 +677,38 @@ module.exports = () => {
     }
   });
 
+  /**
+   * @swagger
+   * /api/v1/user/deactivate/{id}:
+   *   put:
+   *     summary: Deactivate user account
+   *     description: Deactivate a user's account (admin only)
+   *     tags: [Users]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: The user ID
+   *     responses:
+   *       200:
+   *         description: Account deactivated successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/UserResponse'
+   *       401:
+   *         description: Unauthorized - Authentication required
+   *       403:
+   *         description: Forbidden - Insufficient permissions
+   *       404:
+   *         description: User not found
+   *       500:
+   *         description: Server error
+   */
   api.put("/deactivate/:id", async (req, res) => {
     try {
       const { id } = req.params;

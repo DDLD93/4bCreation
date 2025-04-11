@@ -53,9 +53,9 @@ class UserController {
     }
   }
 
-  async login(email, password) {
+  async login(email, password, notificationId) {
     try {
-      const user = await EnumModel.findOne({ email });
+      const user = await UserModel.findOne({ email });
       if (!user) {
         throw new Error("User not found");
       }
@@ -73,7 +73,7 @@ class UserController {
         throw new Error("User is not actived [Contact Admin]");
       }
 
-      await user.postLogin()
+      // await user.postLogin(notificationId)
 
       const accessToken = this.encodeToken(
         { email: user.email, role: user.role, id: user._id },
@@ -93,7 +93,7 @@ class UserController {
 
   async verifyEmail(email) {
     try {
-      const user = await EnumModel.findOne({ email });
+      const user = await UserModel.findOne({ email });
       if (user) {
         throw new Error("User with this email already exists");
       }
@@ -166,7 +166,7 @@ class UserController {
   async activateAccount(token, password) {
     try {
       const { email } = await this.decodeToken(token)
-      const user = await EnumModel.findOne({ email });
+      const user = await UserModel.findOne({ email });
       if (!user) {
         return { ok: false, message: "Account not found" };
       }
@@ -174,7 +174,7 @@ class UserController {
         return { ok: false, message: "Invalid password" };
       }
       await user.activateUser(password);
-      await user.postLogin();
+      // await user.postLogin(notificationId);
 
       const accessToken = this.encodeToken(
         { email: user.email, role: user.role, id: user._id },

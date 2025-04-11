@@ -73,5 +73,7 @@ const UserSchema = new Schema({
 // Create compound indexes for common queries
 UserSchema.index({ ministry: 1, department: 1 });
 UserSchema.index({ role: 1, isActive: 1 });
+UserSchema.index({ email: 1, isActive: 1 });
+UserSchema.index({ email: 1, isActive: 1, role: 1 });
 
 module.exports = mongoose.model('User', UserSchema);

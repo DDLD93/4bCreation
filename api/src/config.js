@@ -1,0 +1,46 @@
+const {
+    MONGO_URI,
+    APP_PORT,
+    JWT_SECRET,
+    REDIS_HOST,
+    REDIS_PASSWORD,
+    REDIS_PORT,
+    AFRICAN_TALKING_KEY,
+    AFRICAN_TALKING_USERNAME,
+    MAILGUN_API,
+    MAILGUN_DOMAIN,
+    MINIO_URL,
+    MINIO_ROOT_USER,
+    MINIO_ROOT_PASSWORD,
+    MINIO_BUCKET,
+    SERVER_DOMAIN,
+    FRONTEND_DOMAIN,
+    RABBIT_URL,
+    DOCUMENT_QUEUE,
+    GEMINI_API_KEY,
+    GEMINI_MODEL_NAME
+} = process.env;
+
+module.exports = {
+    appPort: APP_PORT | 3000,
+    mongoURI: MONGO_URI || "mongodb://localhost:27017/egovconnect",
+    jwtSecret: JWT_SECRET || "klhikhukgyurttetyuiouyguyfyugjoojoyuiyuiyiyikh",
+    redisHost: REDIS_HOST,
+    redisPassword: REDIS_PASSWORD,
+    redisPort: REDIS_PORT,
+    africatalkingKey: AFRICAN_TALKING_KEY,
+    africatalkingUserName: AFRICAN_TALKING_USERNAME,
+    mailgunApi: MAILGUN_API,
+    mailgunDomain: MAILGUN_DOMAIN,
+    minioUrl: MINIO_URL,
+    minioUser: MINIO_ROOT_USER,
+    minioPass: MINIO_ROOT_PASSWORD,
+    minioBucket: MINIO_BUCKET,
+    serverDomain: SERVER_DOMAIN,
+    frontendUrl: FRONTEND_DOMAIN,
+    rabbitUrl: RABBIT_URL,
+    documentQueue: DOCUMENT_QUEUE,
+    geminiApiKey: GEMINI_API_KEY,
+    geminiModelName: GEMINI_MODEL_NAME
+}
+

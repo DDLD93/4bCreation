@@ -1,0 +1,22 @@
+services:
+  4bcreation-api:
+    build: ./api
+    env_file:
+      - .env
+    networks:
+      - ddld-net
+    
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.4bcreation-api.rule=Host(`4bcreation.prismaforge.ng`)"
+      - "traefik.http.routers.4bcreation-api.entrypoints=websecure"
+      - "traefik.http.routers.4bcreation-api.tls.certresolver=myresolver"
+      - "traefik.http.routers.4bcreation-api.service=4bcreation-api"
+      - "traefik.http.services.4bcreation-api.loadbalancer.server.port=3000"
+networks:
+  ddld-net:
+    external: true
+
+
+      
+   

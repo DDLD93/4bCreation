@@ -7,7 +7,7 @@ const express = require("express");
  * @swagger
  * components:
  *   schemas:
- *     Enumerator:
+ *     User:
  *       type: object
  *       required:
  *         - fullName
@@ -24,7 +24,7 @@ const express = require("express");
  *           description: Auto-generated unique identifier
  *         fullName:
  *           type: string
- *           description: Full name of the enumerator
+ *           description: Full name of the user
  *         phone:
  *           type: string
  *           description: Phone number (must be unique)
@@ -71,7 +71,7 @@ const express = require("express");
  *           type: string
  *           format: date-time
  *           description: Timestamp of last update
- *     EnumeratorResponse:
+ *     UserResponse:
  *       type: object
  *       properties:
  *         ok:
@@ -79,14 +79,14 @@ const express = require("express");
  *           description: Operation success status
  *         data:
  *           oneOf:
- *             - $ref: '#/components/schemas/Enumerator'
+ *             - $ref: '#/components/schemas/User'
  *             - type: array
  *               items:
- *                 $ref: '#/components/schemas/Enumerator'
+ *                 $ref: '#/components/schemas/User'
  *             - type: object
  *               properties:
  *                 user:
- *                   $ref: '#/components/schemas/Enumerator'
+ *                   $ref: '#/components/schemas/User'
  *                 accessToken:
  *                   type: string
  *                 refreshToken:
@@ -102,11 +102,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/enumerator/register:
+   * /api/v1/user/register:
    *   post:
-   *     summary: Register a new enumerator
-   *     description: Create a new enumerator account with the provided data
-   *     tags: [Enumerators]
+   *     summary: Register a new user
+   *     description: Create a new user account with the provided data
+   *     tags: [Users]
    *     requestBody:
    *       required: true
    *       content:
@@ -140,17 +140,17 @@ module.exports = () => {
    *                 default: "Kudan"
    *     responses:
    *       201:
-   *         description: Enumerator registered successfully
+   *         description: User registered successfully
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/EnumeratorResponse'
+   *               $ref: '#/components/schemas/UserResponse'
    *       400:
    *         description: Invalid input data or duplicate entry
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/EnumeratorResponse'
+   *               $ref: '#/components/schemas/UserResponse'
    */
 
   api.post("/register", async (req, res) => {
@@ -192,11 +192,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/enumerator/login:
+   * /api/v1/user/login:
    *   post:
-   *     summary: Login enumerator
-   *     description: Authenticate an enumerator and get access tokens
-   *     tags: [Enumerators]
+   *     summary: Login user
+   *     description: Authenticate a user and get access tokens
+   *     tags: [Users]
    *     requestBody:
    *       required: true
    *       content:
@@ -219,13 +219,13 @@ module.exports = () => {
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/EnumeratorResponse'
+   *               $ref: '#/components/schemas/UserResponse'
    *       400:
    *         description: Invalid credentials
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/EnumeratorResponse'
+   *               $ref: '#/components/schemas/UserResponse'
    */
   api.post("/login", async (req, res) => {
     try {
@@ -243,11 +243,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/enumerator/refresh-token:
+   * /api/v1/user/refresh-token:
    *   post:
    *     summary: Refresh access token
    *     description: Get a new access token using refresh token
-   *     tags: [Enumerators]
+   *     tags: [Users]
    *     requestBody:
    *       required: true
    *       content:
@@ -297,11 +297,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/enumerator/recover-account:
+   * /api/v1/user/recover-account:
    *   post:
    *     summary: Initiate account recovery
-   *     description: Send recovery code to enumerator's email
-   *     tags: [Enumerators]
+   *     description: Send recovery code to user's email
+   *     tags: [Users]
    *     requestBody:
    *       required: true
    *       content:
@@ -345,11 +345,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/enumerator/validate-code:
+   * /api/v1/user/validate-code:
    *   post:
    *     summary: Validate recovery code
    *     description: Validate the recovery code sent to email
-   *     tags: [Enumerators]
+   *     tags: [Users]
    *     requestBody:
    *       required: true
    *       content:
@@ -401,11 +401,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/enumerator/reset-password:
+   * /api/v1/user/reset-password:
    *   post:
    *     summary: Reset password
    *     description: Reset password using recovery token
-   *     tags: [Enumerators]
+   *     tags: [Users]
    *     requestBody:
    *       required: true
    *       content:
@@ -427,7 +427,7 @@ module.exports = () => {
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/EnumeratorResponse'
+   *               $ref: '#/components/schemas/UserResponse'
    *       400:
    *         description: Invalid token or password
    */
@@ -447,11 +447,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /enumerator/activate-account:
+   * /api/v1/user/activate-account:
    *   post:
-   *     summary: Activate enumerator account
-   *     description: Activate an enumerator's account
-   *     tags: [Enumerators]
+   *     summary: Activate user account
+   *     description: Activate a user's account
+   *     tags: [Users]
    *     requestBody:
    *       required: true
    *       content:
@@ -467,7 +467,7 @@ module.exports = () => {
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/EnumeratorResponse'
+   *               $ref: '#/components/schemas/UserResponse'
    *       400:
    *         description: Invalid token or password
    *       500:
@@ -486,15 +486,15 @@ module.exports = () => {
     } catch (error) {
       res.status(500).json({ ok: false, message: error.message });
     }
-  });`
-  `
+  });
+  
   /**
    * @swagger
-   * /api/v1/enumerator:
+   * /api/v1/user:
    *   get:
-   *     summary: Get all enumerators
-   *     description: Retrieve a list of all enumerators with optional filters
-   *     tags: [Enumerators]
+   *     summary: Get all users
+   *     description: Retrieve a list of all users with optional filters
+   *     tags: [Users]
    *     parameters:
    *       - in: query
    *         name: status
@@ -509,11 +509,11 @@ module.exports = () => {
    *         description: Filter by verification status
    *     responses:
    *       200:
-   *         description: Successfully retrieved enumerators
+   *         description: Successfully retrieved users
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/EnumeratorResponse'
+   *               $ref: '#/components/schemas/UserResponse'
    *       500:
    *         description: Server error
    */
@@ -533,25 +533,25 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/enumerator/activate/{id}:
+   * /api/v1/user/activate/{id}:
    *   put:
-   *     summary: Activate enumerator account
-   *     description: Activate an enumerator's account (admin only)
-   *     tags: [Enumerators]
+   *     summary: Activate user account
+   *     description: Activate a user's account (admin only)
+   *     tags: [Users]
    *     parameters:
    *       - in: path
    *         name: id
    *         required: true
    *         schema:
    *           type: string
-   *         description: The enumerator ID
+   *         description: The user ID
    *     responses:
    *       200:
    *         description: Account activated successfully
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/EnumeratorResponse'
+   *               $ref: '#/components/schemas/UserResponse'
    *       500:
    *         description: Server error
    */
@@ -585,31 +585,31 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/enumerator/{id}:
+   * /api/v1/user/{id}:
    *   put:
-   *     summary: Update enumerator
-   *     description: Update an enumerator's information
-   *     tags: [Enumerators]
+   *     summary: Update user
+   *     description: Update a user's information
+   *     tags: [Users]
    *     parameters:
    *       - in: path
    *         name: id
    *         required: true
    *         schema:
    *           type: string
-   *         description: The enumerator ID
+   *         description: The user ID
    *     requestBody:
    *       required: true
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/Enumerator'
+   *             $ref: '#/components/schemas/User'
    *     responses:
    *       200:
-   *         description: Enumerator updated successfully
+   *         description: User updated successfully
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/EnumeratorResponse'
+   *               $ref: '#/components/schemas/UserResponse'
    *       500:
    *         description: Server error
    */

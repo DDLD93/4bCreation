@@ -1,17 +1,15 @@
 const express = require('express');
 const AnalyticsController = require("../controller/analytics.controller");
 
-// Basic Swagger definitions - Adapt these based on the actual AnalyticsModel schema
 /**
  * @swagger
  * components:
  *   schemas:
- *     AnalyticsRecord: // Renamed from Enumerator
+ *     AnalyticsRecord:
  *       type: object
  *       required:
- *         // Add required fields from analytics.model.js here
  *         - eventType
- *         - userId // Example: Assuming analytics is tied to a user
+ *         - userId
  *       properties:
  *         _id:
  *           type: string
@@ -33,7 +31,7 @@ const AnalyticsController = require("../controller/analytics.controller");
  *           type: string
  *           format: date-time
  *           description: Timestamp of last update
- *     AnalyticsResponse: // Renamed from EnumeratorResponse
+ *     AnalyticsResponse:
  *       type: object
  *       properties:
  *         ok:
@@ -49,7 +47,7 @@ const AnalyticsController = require("../controller/analytics.controller");
  *         message:
  *           type: string
  *           description: Response message
- *         pagination: // Added for list responses
+ *         pagination:
  *           type: object
  *           properties:
  *              total:
@@ -71,17 +69,17 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/analytics: // Updated path
+   * /api/v1/analytics:
    *   post:
    *     summary: Create a new analytics record
    *     description: Create a new analytics record with the provided data
-   *     tags: [Analytics] // Updated tag
+   *     tags: [Analytics]
    *     requestBody:
    *       required: true
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/AnalyticsRecord' // Reference the correct schema
+   *             $ref: '#/components/schemas/AnalyticsRecord'
    *     responses:
    *       201:
    *         description: Analytics record created successfully
@@ -109,11 +107,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/analytics: // Updated path
+   * /api/v1/analytics:
    *   get:
    *     summary: Get all analytics records
    *     description: Retrieve a list of all analytics records with optional filters and pagination
-   *     tags: [Analytics] // Updated tag
+   *     tags: [Analytics]
    *     parameters:
    *       - in: query
    *         name: page
@@ -133,7 +131,6 @@ module.exports = () => {
    *           type: string
    *           example: createdAt:-1
    *         description: Sort order (e.g., field:1 for ascending, field:-1 for descending)
-   *       // Add other relevant filter parameters based on AnalyticsModel schema
    *       - in: query
    *         name: eventType
    *         schema:
@@ -176,11 +173,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/analytics/{id}: // Updated path
+   * /api/v1/analytics/{id}:
    *   get:
    *     summary: Get a specific analytics record by ID
    *     description: Retrieve details of a single analytics record
-   *     tags: [Analytics] // Updated tag
+   *     tags: [Analytics]
    *     parameters:
    *       - in: path
    *         name: id
@@ -217,11 +214,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/analytics/{id}: // Updated path
+   * /api/v1/analytics/{id}:
    *   put:
    *     summary: Update an analytics record
    *     description: Update an existing analytics record's information
-   *     tags: [Analytics] // Updated tag
+   *     tags: [Analytics]
    *     parameters:
    *       - in: path
    *         name: id
@@ -234,7 +231,7 @@ module.exports = () => {
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/AnalyticsRecord' // Or a specific update schema
+   *             $ref: '#/components/schemas/AnalyticsRecord'
    *     responses:
    *       200:
    *         description: Analytics record updated successfully
@@ -276,11 +273,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/analytics/{id}: // Updated path
+   * /api/v1/analytics/{id}:
    *   delete:
    *     summary: Delete an analytics record
    *     description: Remove an analytics record by its ID
-   *     tags: [Analytics] // Updated tag
+   *     tags: [Analytics]
    *     parameters:
    *       - in: path
    *         name: id

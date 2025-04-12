@@ -295,21 +295,28 @@ class AnalyticsController {
     }
   }
 
-  async getWebinarReminders(userId) {
+  async getWebinarReminders(userId = null) {
     try {
-      if (!userId) {
-        return { ok: false, message: "User ID is required" };
-      }
-
       const now = new Date();
-      // Get webinars in the next 7 days that the user has registered for
-      const upcomingReminders = await WebinarModel.find({
-        'participants.user': userId,
-        startTime: { $gt: now, $lt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) },
+      
+      // Base query for upcoming reminders in the next 7 days
+      const query = {
+        startTime: { 
+          $gt: now, 
+          $lt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) 
+        },
         status: 'approved'
-      })
-      .select('title description startTime endTime speaker tags')
-      .sort({ startTime: 1 });
+      };
+      
+      // If userId is provided, filter by user participation
+      if (userId) {
+        query['participants.user'] = userId;
+      }
+      
+      // Get upcoming reminders
+      const upcomingReminders = await WebinarModel.find(query)
+        .select('title description startTime endTime speaker tags')
+        .sort({ startTime: 1 });
 
       return {
         ok: true,

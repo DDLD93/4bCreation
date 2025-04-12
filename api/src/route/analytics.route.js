@@ -320,5 +320,232 @@ module.exports = () => {
     }
   });
 
+  /**
+   * @swagger
+   * /api/v1/analytics/webinar-summary:
+   *   get:
+   *     summary: Get webinar summary analytics
+   *     description: Retrieve upcoming webinars, completed webinars, certificates, and featured webinars
+   *     tags: [Analytics, Webinars]
+   *     parameters:
+   *       - in: query
+   *         name: userId
+   *         schema:
+   *           type: string
+   *         description: Optional user ID to filter results for a specific user
+   *     responses:
+   *       200:
+   *         description: Successfully retrieved webinar summary analytics
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok:
+   *                   type: boolean
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     upcomingWebinars:
+   *                       type: array
+   *                       items:
+   *                         type: object
+   *                     completedWebinars:
+   *                       type: array
+   *                       items:
+   *                         type: object
+   *                     certificates:
+   *                       type: array
+   *                       items:
+   *                         type: object
+   *                     featuredWebinars:
+   *                       type: array
+   *                       items:
+   *                         type: object
+   *                 message:
+   *                   type: string
+   *       500:
+   *         description: Server error
+   */
+  api.get("/webinar-summary", async (req, res) => {
+    try {
+      const { userId } = req.query;
+      const { ok, data, message } = await AnalyticsController.getWebinarSummaryAnalytics(userId);
+      if (ok) {
+        res.status(200).json({ ok, data, message });
+      } else {
+        res.status(500).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /api/v1/analytics/webinar-hours:
+   *   get:
+   *     summary: Get cumulative hours spent in webinars per month
+   *     description: Retrieve statistics on hours spent in webinars for the past 12 months
+   *     tags: [Analytics, Webinars]
+   *     parameters:
+   *       - in: query
+   *         name: userId
+   *         schema:
+   *           type: string
+   *         description: Optional user ID to filter results for a specific user
+   *       - in: query
+   *         name: months
+   *         schema:
+   *           type: integer
+   *           default: 12
+   *         description: Number of months to include in results (default 12)
+   *     responses:
+   *       200:
+   *         description: Successfully retrieved monthly webinar hours
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok:
+   *                   type: boolean
+   *                 data:
+   *                   type: array
+   *                   items:
+   *                     type: object
+   *                     properties:
+   *                       monthYear:
+   *                         type: string
+   *                         example: "2023-05"
+   *                       month:
+   *                         type: integer
+   *                         example: 5
+   *                       year:
+   *                         type: integer
+   *                         example: 2023
+   *                       totalHours:
+   *                         type: number
+   *                         example: 12.5
+   *                       webinarCount:
+   *                         type: integer
+   *                         example: 3
+   *                 message:
+   *                   type: string
+   *       500:
+   *         description: Server error
+   */
+  api.get("/webinar-hours", async (req, res) => {
+    try {
+      const { userId, months } = req.query;
+      const monthsValue = months ? parseInt(months) : 12;
+      const { ok, data, message } = await AnalyticsController.getWebinarHoursPerMonth(userId, monthsValue);
+      if (ok) {
+        res.status(200).json({ ok, data, message });
+      } else {
+        res.status(500).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /api/v1/analytics/webinar-reminders/{userId}:
+   *   get:
+   *     summary: Get webinar reminders for a user
+   *     description: Retrieve upcoming webinars within the next 7 days that a user has registered for
+   *     tags: [Analytics, Webinars]
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: The user ID to get reminders for
+   *     responses:
+   *       200:
+   *         description: Successfully retrieved webinar reminders
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok:
+   *                   type: boolean
+   *                 data:
+   *                   type: array
+   *                   items:
+   *                     type: object
+   *                 message:
+   *                   type: string
+   *       400:
+   *         description: User ID is required
+   *       500:
+   *         description: Server error
+   */
+  api.get("/webinar-reminders/:userId", async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { ok, data, message } = await AnalyticsController.getWebinarReminders(userId);
+      if (ok) {
+        res.status(200).json({ ok, data, message });
+      } else {
+        res.status(400).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /api/v1/analytics/featured-webinars:
+   *   get:
+   *     summary: Get featured webinars
+   *     description: Retrieve the most popular upcoming webinars based on participant count
+   *     tags: [Analytics, Webinars]
+   *     parameters:
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           default: 5
+   *         description: Number of featured webinars to return (default 5)
+   *     responses:
+   *       200:
+   *         description: Successfully retrieved featured webinars
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok:
+   *                   type: boolean
+   *                 data:
+   *                   type: array
+   *                   items:
+   *                     type: object
+   *                 message:
+   *                   type: string
+   *       500:
+   *         description: Server error
+   */
+  api.get("/featured-webinars", async (req, res) => {
+    try {
+      const { limit } = req.query;
+      const limitValue = limit ? parseInt(limit) : 5;
+      const { ok, data, message } = await AnalyticsController.getFeaturedWebinars(limitValue);
+      if (ok) {
+        res.status(200).json({ ok, data, message });
+      } else {
+        res.status(500).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
+
   return api;
 }; 

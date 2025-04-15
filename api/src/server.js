@@ -59,7 +59,7 @@ app.use('/api/v1/clusters', require('./route/cluster.route')());
 app.use('/api/v1/interactions', require('./route/interaction.route')());
 app.use('/api/v1/quizes', require('./route/quize.route')());
 app.use('/api/v1/quize-attempts', require('./route/quizeAttempt.route')());
-app.use('/api/v1/webnars', require('./route/webnar.route')());
+app.use('/api/v1/webinars', require('./route/webinar.route')());
 
 app.listen(appPort, () => {
     console.log(`Server is running on port ${appPort}`);

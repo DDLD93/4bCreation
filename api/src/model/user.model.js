@@ -3,6 +3,7 @@ const Schema = mongoose.Schema;
 
 // User Model - Optimized and Indexed
 const UserSchema = new Schema({
+  picture: { type: String, trim: true, required: true },
   username: {
     type: String,
     required: [true, 'Username is required'],
@@ -64,7 +65,7 @@ const UserSchema = new Schema({
   profilePicture: String,
   passwordResetToken: String,
   passwordResetExpires: Date
-}, { 
+}, {
   timestamps: true,
   toJSON: { virtuals: true },
   toObject: { virtuals: true }
@@ -75,5 +76,54 @@ UserSchema.index({ ministry: 1, department: 1 });
 UserSchema.index({ role: 1, isActive: 1 });
 UserSchema.index({ email: 1, isActive: 1 });
 UserSchema.index({ email: 1, isActive: 1, role: 1 });
+
+UserSchema.pre("save", function (next, opt) {
+  let { skipHashing } = opt;
+  if (!skipHashing) {
+    bcrypt.hash(this.password, 10, async (err, hash) => {
+      if (err) return next(err);
+      this.password = hash;
+      next();
+    });
+  } else {
+    console.log("Skipping Password Hash !!!");
+    next()
+  }
+});
+
+// Method to check password validity
+UserSchema.methods.isValidPassword = function (password) {
+  if (!this.password) {
+    throw new Error("Password is not set for this user");
+  }
+  return bcrypt.compare(password, this.password);
+};
+
+UserSchema.methods.postLogin = async function () {
+  this.lastLogin = Date.now();
+  await this.save({ skipHashing: true, isAdmin: true });
+};
+
+UserSchema.methods.changePassword = async function (password) {
+  bcrypt.hash(password, 10, async (err, hash) => {
+    if (err) throw new Error(err);;
+    this.password = hash;
+    await this.save({ skipHashing: true });
+  });
+};
+
+UserSchema.methods.activateUser = async function (password) {
+  bcrypt.hash(password, 10, async (err, hash) => {
+    if (err) throw new Error(err);;
+    this.password = hash;
+    this.status = "active"
+    await this.save({ skipHashing: true });
+  });
+};
+
+UserSchema.methods.disableUser = async function () {
+  this.status = "disable"
+  await this.save({ skipHashing: true });
+};
 
 module.exports = mongoose.model('User', UserSchema);

@@ -41,6 +41,8 @@ module.exports = {
     rabbitUrl: RABBIT_URL,
     documentQueue: DOCUMENT_QUEUE,
     geminiApiKey: GEMINI_API_KEY,
-    geminiModelName: GEMINI_MODEL_NAME
+    geminiModelName: GEMINI_MODEL_NAME,
+    jitsiUrl: JITSI_URL,
+    jitsiApiKey: JITSI_API_KEY
 }
 

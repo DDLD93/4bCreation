@@ -1,5 +1,5 @@
 const AnalyticsModel = require("../model/analytics.model");
-const WebinarModel = require("../model/webnar.model");
+const WebinarModel = require("../model/webinar.model");
 const CertificateModel = require("../model/certificate.model");
 const redisCtrl = require("./redis.controller"); // Keep if needed for caching/specific logic, remove otherwise
 const emailController = require("./email.controller"); // Keep if needed for notifications, remove otherwise
@@ -353,7 +353,7 @@ class AnalyticsController {
     }
   }
 
-  // Add other analytics-specific methods if needed
+ S  // Add other analytics-specific methods if needed
 
   // Helper methods like encodeToken/decodeToken might not be needed here
   // unless there's specific logic requiring them within this controller.

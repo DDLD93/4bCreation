@@ -1,14 +1,14 @@
 const express = require('express');
-const WebnarController = require("../controller/webnar.controller");
+const webinarController = require("../controller/webinar.controller");
 // Assuming you might need authentication/authorization middleware
 // const { isAuthenticated, isAuthorized } = require("../middleware/auth"); 
 
-// Swagger Definitions for Webinar - Adapt based on webnar.model.js
+// Swagger Definitions for Webinar - Adapt based on webinar.model.js
 /**
  * @swagger
  * components:
  *   schemas:
- *     Webnar:
+ *     webinar:
  *       type: object
  *       required:
  *         - title
@@ -61,7 +61,7 @@ const WebnarController = require("../controller/webnar.controller");
  *         updatedAt:
  *           type: string
  *           format: date-time
- *     WebnarResponse:
+ *     webinarResponse:
  *       type: object
  *       properties:
  *         ok:
@@ -69,10 +69,10 @@ const WebnarController = require("../controller/webnar.controller");
  *           description: Operation success status
  *         data:
  *           oneOf:
- *             - $ref: '#/components/schemas/Webnar'
+ *             - $ref: '#/components/schemas/webinar'
  *             - type: array
  *               items:
- *                 $ref: '#/components/schemas/Webnar'
+ *                 $ref: '#/components/schemas/webinar'
  *             - type: null
  *         message:
  *           type: string
@@ -101,11 +101,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/webnars:
+   * /api/v1/webinars:
    *   post:
    *     summary: Create a new webinar
    *     description: Schedule a new webinar and associate it with a cluster
-   *     tags: [Webnars]
+   *     tags: [webinars]
    *     // security:  # Add if requires authentication
    *     //   - bearerAuth: []
    *     requestBody:
@@ -113,14 +113,14 @@ module.exports = () => {
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/Webnar'
+   *             $ref: '#/components/schemas/webinar'
    *     responses:
    *       201:
    *         description: Webinar created successfully
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/WebnarResponse'
+   *               $ref: '#/components/schemas/webinarResponse'
    *       400:
    *         description: Invalid input data
    *       401:
@@ -132,7 +132,7 @@ module.exports = () => {
       const body = req.body;
       // Add user ID from auth token if presenter is the creator
       // body.presenter = req.user._id; 
-      const { ok, data, message } = await WebnarController.createWebnar(body);
+      const { ok, data, message } = await webinarController.createwebinar(body);
       if (!ok) throw new Error(message);
       res.status(201).json({ ok, data, message });
     } catch (error) {
@@ -142,11 +142,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/webnars:
+   * /api/v1/webinars:
    *   get:
    *     summary: Get all webinars
    *     description: Retrieve a list of webinars with filters, pagination, and time filtering
-   *     tags: [Webnars]
+   *     tags: [webinars]
    *     parameters:
    *       - in: query
    *         name: page
@@ -187,7 +187,7 @@ module.exports = () => {
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/WebnarResponse'
+   *               $ref: '#/components/schemas/webinarResponse'
    *       500:
    *         description: Server error
    */
@@ -201,7 +201,7 @@ module.exports = () => {
       } 
       // No default sort here, controller handles based on timeFilter
 
-      const { ok, data, pagination, message } = await WebnarController.getWebnars(filter, options);
+      const { ok, data, pagination, message } = await webinarController.getwebinars(filter, options);
       if (ok) {
         res.status(200).json({ ok, message, data, pagination });
       } else {
@@ -214,11 +214,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/webnars/{id}:
+   * /api/v1/webinars/{id}:
    *   get:
    *     summary: Get webinar by ID
    *     description: Retrieve a specific webinar, optionally populating relations
-   *     tags: [Webnars]
+   *     tags: [webinars]
    *     parameters:
    *       - in: path
    *         name: id
@@ -235,7 +235,7 @@ module.exports = () => {
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/WebnarResponse'
+   *               $ref: '#/components/schemas/webinarResponse'
    *       404:
    *         description: Webinar not found
    *       500:
@@ -246,7 +246,7 @@ module.exports = () => {
       const { id } = req.params;
       const { populate } = req.query;
       const options = { populate };
-      const { ok, data, message } = await WebnarController.getWebnarById(id, options);
+      const { ok, data, message } = await webinarController.getwebinarById(id, options);
       if (ok) {
         res.status(200).json({ ok, message, data });
       } else {
@@ -259,11 +259,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/webnars/{id}:
+   * /api/v1/webinars/{id}:
    *   put:
    *     summary: Update a webinar
    *     description: Update details of an existing webinar
-   *     tags: [Webnars]
+   *     tags: [webinars]
    *     // security:  # Add if requires authentication/authorization
    *     //   - bearerAuth: []
    *     parameters:
@@ -277,14 +277,14 @@ module.exports = () => {
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/Webnar' // Allow full update, handle immutables
+   *             $ref: '#/components/schemas/webinar' // Allow full update, handle immutables
    *     responses:
    *       200:
    *         description: Webinar updated successfully
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/WebnarResponse'
+   *               $ref: '#/components/schemas/webinarResponse'
    *       404:
    *         description: Webinar not found
    *       400:
@@ -304,7 +304,7 @@ module.exports = () => {
 
       // TODO: Add authorization check: req.user.role === 'ADMIN' || (req.user.role === 'PRESENTER' && webinar.presenter === req.user._id)
 
-      const { ok, data, message } = await WebnarController.updateWebnar(id, body);
+      const { ok, data, message } = await webinarController.updatewebinar(id, body);
       if (ok) {
           if (data) {
               res.status(200).json({ ok, message, data });
@@ -321,11 +321,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/webnars/{id}:
+   * /api/v1/webinars/{id}:
    *   delete:
    *     summary: Delete a webinar
    *     description: Remove a webinar record
-   *     tags: [Webnars]
+   *     tags: [webinars]
    *     // security:  # Add if requires authentication/authorization (e.g., Admin only)
    *     //   - bearerAuth: []
    *     parameters:
@@ -352,7 +352,7 @@ module.exports = () => {
     try {
       const { id } = req.params;
        // TODO: Add authorization check: req.user.role === 'ADMIN'
-      const { ok, data, message } = await WebnarController.deleteWebnar(id);
+      const { ok, data, message } = await webinarController.deletewebinar(id);
       if (ok) {
           if(data) {
             res.status(200).json({ ok, message }); // Or 204 No Content
@@ -371,11 +371,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/webnars/{id}/register:
+   * /api/v1/webinars/{id}/register:
    *   post:
    *     summary: Register for a webinar
    *     description: Add the authenticated user to the webinar's attendees list
-   *     tags: [Webnars]
+   *     tags: [webinars]
    *     // security: 
    *     //   - bearerAuth: [] # Requires user to be logged in
    *     parameters:
@@ -389,7 +389,7 @@ module.exports = () => {
    *         description: Successfully registered for the webinar
    *         content:
    *           application/json:
-   *             schema: { $ref: '#/components/schemas/WebnarResponse' } # Returns updated webinar
+   *             schema: { $ref: '#/components/schemas/webinarResponse' } # Returns updated webinar
    *       400:
    *         description: Already registered or other issue
    *       401:
@@ -407,7 +407,7 @@ module.exports = () => {
            const userId = req.body.userId; // TEMPORARY: Get from body until auth is set up
             if (!userId) return res.status(400).json({ ok: false, message: "User ID is required for registration."}) 
             
-           const { ok, data, message } = await WebnarController.registerUserForWebnar(id, userId);
+           const { ok, data, message } = await webinarController.generateJitsiToken(id, userId);
            if (ok) {
                res.status(200).json({ ok, data, message });
            } else {
@@ -420,11 +420,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/webnars/{id}/unregister:
+   * /api/v1/webinars/{id}/unregister:
    *   delete: # Using DELETE for unregistration action
    *     summary: Unregister from a webinar
    *     description: Remove the authenticated user from the webinar's attendees list
-   *     tags: [Webnars]
+   *     tags: [webinars]
    *     // security:
    *     //   - bearerAuth: [] # Requires user to be logged in
    *     parameters:
@@ -438,7 +438,7 @@ module.exports = () => {
    *         description: Successfully unregistered from the webinar
    *         content:
    *           application/json:
-   *             schema: { $ref: '#/components/schemas/WebnarResponse' } # Returns updated webinar
+   *             schema: { $ref: '#/components/schemas/webinarResponse' } # Returns updated webinar
    *       400:
    *         description: Not registered or other issue
    *       401:
@@ -456,7 +456,7 @@ module.exports = () => {
            const userId = req.body.userId; // TEMPORARY: Get from body until auth is set up
             if (!userId) return res.status(400).json({ ok: false, message: "User ID is required for unregistration."}) 
             
-           const { ok, data, message } = await WebnarController.unregisterUserFromWebnar(id, userId);
+           const { ok, data, message } = await webinarController.unregisterUserFromwebinar(id, userId);
             if (ok) {
                res.status(200).json({ ok, data, message });
            } else {
@@ -469,11 +469,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/webnars/{id}/jitsi-token:
+   * /api/v1/webinars/{id}/jitsi-token:
    *   get:
    *     summary: Generate Jitsi meeting token
    *     description: Generate a JWT token for accessing a Jitsi meeting for this webinar
-   *     tags: [Webnars]
+   *     tags: [webinars]
    *     security:
    *       - bearerAuth: []
    *     parameters:
@@ -554,7 +554,7 @@ module.exports = () => {
         });
       }
       
-      const { ok, data, message } = await WebnarController.generateJitsiToken(id, userId, bufferMinutes);
+      const { ok, data, message } = await webinarController.generateJitsiToken(id, userId, bufferMinutes);
       
       if (ok) {
         res.status(200).json({ ok, data, message });

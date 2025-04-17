@@ -1,17 +1,14 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
+const bcrypt = require('bcrypt');
 
 // User Model - Optimized and Indexed
 const UserSchema = new Schema({
   picture: { type: String, trim: true, required: true },
-  username: {
-    type: String,
-    required: [true, 'Username is required'],
-    unique: true,
-    trim: true,
-    index: true,
-    minlength: [3, 'Username must be at least 3 characters long']
-  },
+  firstName: { type: String, trim: true, required: true },
+  lastName: { type: String, trim: true, required: true },
+  fullName: { type: String, trim: true },
+  phone: { type: String, trim: true, required: true },
   email: {
     type: String,
     required: [true, 'Email is required'],
@@ -25,13 +22,13 @@ const UserSchema = new Schema({
     type: String,
     required: [true, 'Password is required'],
     minlength: [8, 'Password must be at least 8 characters long'],
-    select: false // Don't return password in queries by default
+    // select: false // Don't return password in queries by default
   },
   role: {
     type: String,
     enum: {
-      values: ['admin', 'superuser', 'speaker', 'participant'],
-      message: 'Role must be admin, superuser, speaker, or participant'
+      values: ['speaker', 'participant'],
+      message: 'Role must be speaker or participant'
     },
     default: 'participant',
     index: true
@@ -46,29 +43,31 @@ const UserSchema = new Schema({
     trim: true,
     index: true
   },
+  unit: {
+    type: String,
+    trim: true,
+    index: true
+  },
   mfaEnabled: {
     type: Boolean,
     default: false
   },
-  mfaSecret: {
+  status: {
     type: String,
-    select: false // Don't return MFA secret in queries by default
-  },
-  isActive: {
-    type: Boolean,
-    default: true,
-    index: true
+    enum: {
+      values: ['active', 'disable'],
+      message: 'Status must be active or disable'
+    },
+    default: 'disable'
   },
   lastLogin: {
     type: Date
   },
-  profilePicture: String,
-  passwordResetToken: String,
-  passwordResetExpires: Date
+
 }, {
-  timestamps: true,
   toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  toObject: { virtuals: true },
+  timestamps: true,
 });
 
 // Create compound indexes for common queries
@@ -78,6 +77,7 @@ UserSchema.index({ email: 1, isActive: 1 });
 UserSchema.index({ email: 1, isActive: 1, role: 1 });
 
 UserSchema.pre("save", function (next, opt) {
+  this.fullName = `${this.firstName} ${this.lastName}`;
   let { skipHashing } = opt;
   if (!skipHashing) {
     bcrypt.hash(this.password, 10, async (err, hash) => {

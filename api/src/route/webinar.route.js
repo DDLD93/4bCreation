@@ -1,5 +1,6 @@
 const express = require('express');
 const webinarController = require("../controller/webinar.controller");
+const { verifyToken } = require("../middleware/auth.middleware");
 // Assuming you might need authentication/authorization middleware
 // const { isAuthenticated, isAuthorized } = require("../middleware/auth"); 
 
@@ -98,6 +99,8 @@ const webinarController = require("../controller/webinar.controller");
 
 module.exports = () => {
   const api = express.Router();
+
+  api.use(verifyToken);
 
   /**
    * @swagger
@@ -400,14 +403,15 @@ module.exports = () => {
    *         description: Server error
    */
    // Add middleware like isAuthenticated if needed
-   api.post("/:id/register", async (req, res) => {
+   api.get("/:id/join",verifyToken, async (req, res) => {
        try {
            const { id } = req.params;
-           // const userId = req.user._id; // Get user ID from authentication token
-           const userId = req.body.userId; // TEMPORARY: Get from body until auth is set up
+           const userId = req.user.id; 
+           console.log("userId >>>", userId)// Get user ID from authentication token
+           // const userId = req.body.userId; // TEMPORARY: Get from body until auth is set up
             if (!userId) return res.status(400).json({ ok: false, message: "User ID is required for registration."}) 
             
-           const { ok, data, message } = await webinarController.generateJitsiToken(id, userId);
+           const { ok, data, message } = await webinarController.joinWebinar(id, userId);
            if (ok) {
                res.status(200).json({ ok, data, message });
            } else {

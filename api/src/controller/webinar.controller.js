@@ -160,7 +160,7 @@ class webinarController {
   }
 
   // Add specific methods: register user, unregister user, get attendees, etc.
-    async registerUserForwebinar(webinarId, userId) {
+  async registerUserForwebinar(webinarId, userId) {
         try {
             const updatedwebinar = await webinarModel.findByIdAndUpdate(
                 webinarId,
@@ -174,9 +174,9 @@ class webinarController {
             console.log("Error registering user for webinar:", error.message);
             return { ok: false, message: error.message };
         }
-    }
+  }
 
-    async unregisterUserFromwebinar(webinarId, userId) {
+  async unregisterUserFromwebinar(webinarId, userId) {
         try {
             const updatedwebinar = await webinarModel.findByIdAndUpdate(
                 webinarId,
@@ -190,7 +190,7 @@ class webinarController {
             console.log("Error unregistering user from webinar:", error.message);
             return { ok: false, message: error.message };
         }
-    }
+  }
 
     /**
      * Generate a JWT token for Jitsi meeting access
@@ -200,7 +200,7 @@ class webinarController {
      * @param {Object} customClaims - Additional claims to include in the JWT
      * @returns {Object} Response containing token and meeting details or error
      */
-    async joinWebinar(webinarId, userId, bufferMinutes = 30, customClaims = {}) {
+  async joinWebinar(webinarId, userId, bufferMinutes = 30, customClaims = {}) {
         try {
             // Get webinar with populated allowedClusters
             const webinar = await webinarModel.findById(webinarId)
@@ -231,9 +231,9 @@ class webinarController {
             });
             const isSpeaker = webinar.speaker && webinar.speaker.toString() === userId;
             
-            if (!isParticipant && !isAllowedByClusters && !isSpeaker) {
-                return { ok: false, message: "User is not eligible to join this webinar" };
-            }
+            // if (!isParticipant && !isAllowedByClusters && !isSpeaker) {
+            //     return { ok: false, message: "User is not eligible to join this webinar" };
+            // }
             
             // Generate room name using webinar ID (ensuring it's URL-friendly)
             
@@ -258,7 +258,7 @@ class webinarController {
             // Calculate expiration in seconds from now (for JWT)
             const expiresIn = Math.floor((expTime - now) / 1000);
 
-            const token = this.generateJitsiToken(jitsiApiKey, { id: userId, name: user.fullName, email: user.email, avatar: user.picture, appId: webinar._id, kid: webinar._id, roomName });	
+            const token = this.generateJitsiToken(jitsiApiKey, { id: userId, name: user.fullName, email: user.email, avatar: user.picture, appId: webinar._id, roomName });	
             
             // Update participant record with attendance information
             if (isParticipant && !isSpeaker) {
@@ -310,19 +310,19 @@ class webinarController {
             email: email,
             moderator: 'true'
           },
-          features: {
-            livestreaming: 'true',
-            recording: 'true',
-            transcription: 'true',
-            "outbound-call": 'true'
-          }
+          // features: {
+          //   livestreaming: 'true',
+          //   recording: 'true',
+          //   transcription: 'true',
+          //   "outbound-call": 'true'
+          // }
         },
         iss: 'chat',
         room: roomName || '*',
         sub: appId,
         exp: Math.round(now.setHours(now.getHours() + 3) / 1000),
         nbf: (Math.round((new Date).getTime() / 1000) - 10)
-      }, privateKey, { algorithm: 'RS256', header: { kid } })
+      }, privateKey, { header: { kid:"vpaas-magic-cookie-bb1143e33f2d4a85a60e8240004d730c/47dd12" } })
       return token;
     }
 }

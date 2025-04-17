@@ -18,7 +18,9 @@ const {
     RABBIT_URL,
     DOCUMENT_QUEUE,
     GEMINI_API_KEY,
-    GEMINI_MODEL_NAME
+    GEMINI_MODEL_NAME,
+    JITSI_URL,
+    JITSI_API_KEY
 } = process.env;
 
 module.exports = {

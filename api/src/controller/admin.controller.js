@@ -13,29 +13,29 @@ class AdminController {
       // Check if user exists and has appropriate role
       const userId = body.user;
       const user = await UserModel.findById(userId);
-      
+
       if (!user) {
         throw new Error("User not found");
       }
-      
+
       // Update user role to admin if not already
       if (user.role !== 'admin') {
         await UserModel.findByIdAndUpdate(userId, { role: 'admin' });
       }
-      
+
       // Check if admin record already exists for this user
       const existingAdmin = await AdminModel.findOne({ user: userId });
       if (existingAdmin) {
         throw new Error("Admin record already exists for this user");
       }
-      
+
       // Create new admin record
       const newAdmin = new AdminModel(body);
       await newAdmin.save();
-      
+
       // Populate user information
       const adminWithUser = await AdminModel.findById(newAdmin._id).populate('user', '-password');
-      
+
       return {
         ok: true,
         data: adminWithUser,
@@ -53,25 +53,25 @@ class AdminController {
       const page = parseInt(options.page) || 1;
       const limit = parseInt(options.limit) || 50;
       const skip = (page - 1) * limit;
-      
+
       // Extract sorting parameters
       const sort = options.sort || { createdAt: -1 }; // Default sort by creation date
-      
+
       // Count total documents for pagination metadata
       const total = await AdminModel.countDocuments(filter);
-      
+
       // Get paginated results with user information
       const admins = await AdminModel.find(filter)
         .populate('user', '-password')
         .sort(sort)
         .skip(skip)
         .limit(limit);
-      
+
       // Calculate pagination metadata
       const totalPages = Math.ceil(total / limit);
       const hasNext = page < totalPages;
       const hasPrev = page > 1;
-      
+
       return {
         ok: true,
         data: admins,
@@ -122,19 +122,19 @@ class AdminController {
   // Update admin
   async updateAdmin(id, updateData) {
     try {
-      const admin = await AdminModel.findByIdAndUpdate(id, updateData, { 
-        new: true, 
-        runValidators: true 
+      const admin = await AdminModel.findByIdAndUpdate(id, updateData, {
+        new: true,
+        runValidators: true
       }).populate('user', '-password');
-      
+
       if (!admin) {
         return { ok: false, message: "Admin not found" };
       }
-      
+
       // Update last activity timestamp
       admin.lastActivity = new Date();
       await admin.save();
-      
+
       return { ok: true, data: admin, message: "Admin updated successfully" };
     } catch (error) {
       console.log("Error updating admin:", error.message);
@@ -146,17 +146,17 @@ class AdminController {
   async updatePermissions(id, permissions) {
     try {
       const admin = await AdminModel.findById(id);
-      
+
       if (!admin) {
         return { ok: false, message: "Admin not found" };
       }
-      
+
       admin.permissions = permissions;
       admin.lastActivity = new Date();
       await admin.save();
-      
+
       const updatedAdmin = await AdminModel.findById(id).populate('user', '-password');
-      
+
       return { ok: true, data: updatedAdmin, message: "Admin permissions updated successfully" };
     } catch (error) {
       console.log("Error updating admin permissions:", error.message);
@@ -168,22 +168,22 @@ class AdminController {
   async deleteAdmin(id, revertUserRole = false) {
     try {
       const admin = await AdminModel.findById(id);
-      
+
       if (!admin) {
         return { ok: false, message: "Admin not found" };
       }
-      
+
       // Get user ID before deleting admin
       const userId = admin.user;
-      
+
       // Delete admin record
       await AdminModel.findByIdAndDelete(id);
-      
+
       // Optionally revert user role back to participant
       if (revertUserRole) {
         await UserModel.findByIdAndUpdate(userId, { role: 'participant' });
       }
-      
+
       return { ok: true, message: "Admin deleted successfully" };
     } catch (error) {
       console.log("Error deleting admin:", error.message);
@@ -195,24 +195,24 @@ class AdminController {
   async hasPermission(adminId, permission) {
     try {
       const admin = await AdminModel.findById(adminId);
-      
+
       if (!admin) {
         return { ok: false, message: "Admin not found" };
       }
-      
+
       // Full access permission grants all access
       if (admin.permissions.includes('full_access')) {
         return { ok: true, data: true, message: "Admin has full access" };
       }
-      
+
       const hasPermission = admin.permissions.includes(permission);
-      
-      return { 
-        ok: true, 
-        data: hasPermission, 
-        message: hasPermission ? 
-          `Admin has ${permission} permission` : 
-          `Admin does not have ${permission} permission` 
+
+      return {
+        ok: true,
+        data: hasPermission,
+        message: hasPermission ?
+          `Admin has ${permission} permission` :
+          `Admin does not have ${permission} permission`
       };
     } catch (error) {
       console.log("Error checking admin permission:", error.message);
@@ -220,29 +220,58 @@ class AdminController {
     }
   }
 
+  // Seed an initial admin user if none exists
+  async init() {
+    try {
+      // Check if any admin exists
+      const adminCount = await AdminModel.countDocuments();
+      if (adminCount > 0) {
+        return { ok: true, message: "Admin already exists, skipping seeding." };
+      }
+
+
+      // Create admin record
+      const adminData = {
+        user: user._id,
+        permissions: ['full_access'],
+        adminLevel: 'super',
+        department: 'Administration',
+        dashboardAccess: true,
+        canManageAdmins: true,
+        notes: 'Seeded super admin'
+      };
+      
+      const admin = new AdminModel(adminData);
+      await admin.save();
+
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
   // Handle errors
   handleError(error) {
     console.log("Admin controller error:", error.message);
-    
+
     // Handle duplicate key errors
     if (error.code === 11000 || error.message.includes('duplicate')) {
-      return { 
-        ok: false, 
-        message: "Duplicate entry. This admin record already exists." 
+      return {
+        ok: false,
+        message: "Duplicate entry. This admin record already exists."
       };
     }
-    
+
     // Handle validation errors
     if (error.name === 'ValidationError') {
       const messages = Object.values(error.errors).map(err => err.message);
-      return { 
-        ok: false, 
-        message: messages.join(', ') 
+      return {
+        ok: false,
+        message: messages.join(', ')
       };
     }
-    
+
     return { ok: false, message: error.message };
   }
 }
 
-module.exports = new AdminController(); 
+module.exports = new AdminController();

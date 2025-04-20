@@ -3,11 +3,28 @@ const Schema = mongoose.Schema;
 
 // Admin Model - Extending User with admin-specific fields
 const AdminSchema = new Schema({
-  user: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'User reference is required'],
-    index: true
+  fullName: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+    validate: {
+      validator: function(v) {
+        return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(v);
+      },
+      message: props => `${props.value} is not a valid email!`
+    }
+  },
+  password: {
+    type: String,
+    required: true,
+    minlength: 6
   },
   permissions: {
     type: [{
@@ -19,36 +36,18 @@ const AdminSchema = new Schema({
     }],
     default: []
   },
-  adminLevel: {
+  role: {
     type: String,
     enum: {
-      values: ['junior', 'senior', 'super'],
+      values: ['super admin', 'admin', 'reviewer'],
       message: 'Admin level must be junior, senior, or super'
     },
     default: 'junior',
     index: true
   },
-  department: {
-    type: String,
-    required: [true, 'Department is required'],
-    trim: true,
-    index: true
-  },
-  dashboardAccess: {
-    type: Boolean,
-    default: true
-  },
-  canManageAdmins: {
-    type: Boolean,
-    default: false
-  },
-  lastActivity: {
+  lastLogin: {
     type: Date,
     default: Date.now
-  },
-  notes: {
-    type: String,
-    trim: true
   }
 }, { 
   timestamps: true,

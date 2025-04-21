@@ -1,10 +1,8 @@
 const express = require('express');
 const webinarController = require("../controller/webinar.controller");
 const { verifyToken } = require("../middleware/auth.middleware");
-// Assuming you might need authentication/authorization middleware
-// const { isAuthenticated, isAuthorized } = require("../middleware/auth"); 
 
-// Swagger Definitions for Webinar - Adapt based on webinar.model.js
+// Swagger Definitions for Webinar - Based on webinar.model.js
 /**
  * @swagger
  * components:
@@ -15,47 +13,76 @@ const { verifyToken } = require("../middleware/auth.middleware");
  *         - title
  *         - description
  *         - startTime
- *         - durationMinutes
- *         - presenter
- *         - cluster
+ *         - endTime
+ *         - speaker
  *       properties:
  *         _id:
  *           type: string
  *           description: Auto-generated unique identifier
  *         title:
  *           type: string
+ *           description: Title of the webinar
  *         description:
  *           type: string
+ *           description: Detailed description of the webinar
  *         startTime:
  *           type: string
  *           format: date-time
  *           description: Scheduled start time of the webinar
- *         durationMinutes:
- *           type: number
- *           description: Duration of the webinar in minutes
- *         presenter: 
- *           type: string # Assuming presenter is linked by User ID
- *           description: User ID of the presenter
- *         cluster:
+ *         endTime:
  *           type: string
- *           description: ID of the related cluster
- *         meetingLink:
+ *           format: date-time
+ *           description: Scheduled end time of the webinar
+ *         speaker:
  *           type: string
- *           format: url
- *           description: Link to the online meeting (Zoom, Meet, etc.)
- *         attendees:
- *           type: array
- *           items:
- *             type: string # User IDs
- *           description: List of registered attendees
- *         recordingUrl:
- *           type: string
- *           format: url
- *           description: Link to the webinar recording (if available)
+ *           description: User ID of the speaker
  *         status:
  *           type: string
- *           enum: ['scheduled', 'live', 'completed', 'cancelled']
- *           default: 'scheduled'
+ *           enum: ['pending', 'approved', 'completed', 'rejected', 'cancelled']
+ *           default: 'pending'
+ *           description: Current status of the webinar
+ *         recordingUrl:
+ *           type: string
+ *           description: URL to the recording after webinar completion
+ *         clusters:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: Array of cluster IDs this webinar belongs to
+ *         participants:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               user:
+ *                 type: string
+ *                 description: User ID of the participant
+ *               registered:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Registration timestamp
+ *               attended:
+ *                 type: boolean
+ *                 description: Whether user attended the webinar
+ *               attendanceTime:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Time user joined the webinar
+ *               exitTime:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Time user left the webinar
+ *         participantCount:
+ *           type: integer
+ *           description: Total number of registered participants
+ *         maxCapacity:
+ *           type: integer
+ *           description: Maximum number of participants allowed
+ *         tags:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: Keywords associated with this webinar
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -93,7 +120,7 @@ const { verifyToken } = require("../middleware/auth.middleware");
  *               type: boolean
  *             hasPrev:
  *               type: boolean
- *             grandTotal: # Optional, for filtered results
+ *             grandTotal:
  *               type: integer
  */
 
@@ -107,10 +134,10 @@ module.exports = () => {
    * /api/v1/webinars:
    *   post:
    *     summary: Create a new webinar
-   *     description: Schedule a new webinar and associate it with a cluster
-   *     tags: [webinars]
-   *     // security:  # Add if requires authentication
-   *     //   - bearerAuth: []
+   *     description: Schedule a new webinar and associate it with clusters
+   *     tags: [Webinars]
+   *     security:
+   *       - bearerAuth: []
    *     requestBody:
    *       required: true
    *       content:
@@ -127,14 +154,11 @@ module.exports = () => {
    *       400:
    *         description: Invalid input data
    *       401:
-   *         description: Unauthorized (if auth is required)
+   *         description: Unauthorized
    */
-  // Add middleware like isAuthenticated, isAuthorized(['ADMIN']) if needed
   api.post("/", async (req, res) => {
     try {
       const body = req.body;
-      // Add user ID from auth token if presenter is the creator
-      // body.presenter = req.user._id; 
       const { ok, data, message } = await webinarController.createwebinar(body);
       if (!ok) throw new Error(message);
       res.status(201).json({ ok, data, message });
@@ -149,7 +173,9 @@ module.exports = () => {
    *   get:
    *     summary: Get all webinars
    *     description: Retrieve a list of webinars with filters, pagination, and time filtering
-   *     tags: [webinars]
+   *     tags: [Webinars]
+   *     security:
+   *       - bearerAuth: []
    *     parameters:
    *       - in: query
    *         name: page
@@ -161,16 +187,16 @@ module.exports = () => {
    *         name: sort
    *         schema: { type: string, example: startTime:-1 }
    *       - in: query
-   *         name: cluster
+   *         name: clusters
    *         schema: { type: string }
    *         description: Filter by cluster ID
    *       - in: query
-   *         name: presenter
+   *         name: speaker
    *         schema: { type: string }
-   *         description: Filter by presenter ID
+   *         description: Filter by speaker ID
    *       - in: query
    *         name: status
-   *         schema: { type: string, enum: ['scheduled', 'live', 'completed', 'cancelled'] }
+   *         schema: { type: string, enum: ['pending', 'approved', 'completed', 'rejected', 'cancelled'] }
    *         description: Filter by status
    *       - in: query
    *         name: timeFilter
@@ -178,11 +204,11 @@ module.exports = () => {
    *         description: Filter for upcoming or past webinars relative to now
    *       - in: query
    *         name: select
-   *         schema: { type: string, example: title startTime presenter }
+   *         schema: { type: string, example: title startTime speaker }
    *         description: Select specific fields (space-separated)
    *       - in: query
    *         name: populate
-   *         schema: { type: string, example: cluster presenter }
+   *         schema: { type: string, example: clusters speaker }
    *         description: Populate related fields (space-separated)
    *     responses:
    *       200:
@@ -202,7 +228,6 @@ module.exports = () => {
           const parts = options.sort.split(':');
           options.sort = { [parts[0]]: parseInt(parts[1]) };
       } 
-      // No default sort here, controller handles based on timeFilter
 
       const { ok, data, pagination, message } = await webinarController.getwebinars(filter, options);
       if (ok) {
@@ -221,7 +246,9 @@ module.exports = () => {
    *   get:
    *     summary: Get webinar by ID
    *     description: Retrieve a specific webinar, optionally populating relations
-   *     tags: [webinars]
+   *     tags: [Webinars]
+   *     security:
+   *       - bearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -230,7 +257,7 @@ module.exports = () => {
    *         description: Webinar ID
    *       - in: query
    *         name: populate
-   *         schema: { type: string, example: cluster presenter attendees }
+   *         schema: { type: string, example: clusters speaker participants.user }
    *         description: Populate related fields (space-separated)
    *     responses:
    *       200:
@@ -266,9 +293,9 @@ module.exports = () => {
    *   put:
    *     summary: Update a webinar
    *     description: Update details of an existing webinar
-   *     tags: [webinars]
-   *     // security:  # Add if requires authentication/authorization
-   *     //   - bearerAuth: []
+   *     tags: [Webinars]
+   *     security:
+   *       - bearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -280,7 +307,7 @@ module.exports = () => {
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/webinar' // Allow full update, handle immutables
+   *             $ref: '#/components/schemas/webinar'
    *     responses:
    *       200:
    *         description: Webinar updated successfully
@@ -292,20 +319,14 @@ module.exports = () => {
    *         description: Webinar not found
    *       400:
    *         description: Invalid update data
-   *       401/403:
-   *         description: Unauthorized/Forbidden (if auth/authz needed)
    *       500:
    *         description: Server error
    */
-  // Add middleware like isAuthenticated, isAuthorized(['ADMIN', 'PRESENTER']) if needed
-  // Ensure presenter can only update their own webinar, or admin can update any
   api.put("/:id", async (req, res) => {
     try {
       const { id } = req.params;
       const body = req.body;
-      delete body._id; delete body.createdAt; delete body.updatedAt; delete body.attendees; // Attendees managed separately
-
-      // TODO: Add authorization check: req.user.role === 'ADMIN' || (req.user.role === 'PRESENTER' && webinar.presenter === req.user._id)
+      delete body._id; delete body.createdAt; delete body.updatedAt;
 
       const { ok, data, message } = await webinarController.updatewebinar(id, body);
       if (ok) {
@@ -328,9 +349,9 @@ module.exports = () => {
    *   delete:
    *     summary: Delete a webinar
    *     description: Remove a webinar record
-   *     tags: [webinars]
-   *     // security:  # Add if requires authentication/authorization (e.g., Admin only)
-   *     //   - bearerAuth: []
+   *     tags: [Webinars]
+   *     security:
+   *       - bearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id
@@ -345,20 +366,16 @@ module.exports = () => {
    *             schema: { type: object, properties: { ok: { type: boolean }, message: { type: string } } }
    *       404:
    *         description: Webinar not found
-   *       401/403:
-   *         description: Unauthorized/Forbidden
    *       500:
    *         description: Server error
    */
-  // Add middleware like isAuthenticated, isAuthorized(['ADMIN']) if needed
   api.delete("/:id", async (req, res) => {
     try {
       const { id } = req.params;
-       // TODO: Add authorization check: req.user.role === 'ADMIN'
       const { ok, data, message } = await webinarController.deletewebinar(id);
       if (ok) {
           if(data) {
-            res.status(200).json({ ok, message }); // Or 204 No Content
+            res.status(200).json({ ok, message });
           } else {
             res.status(404).json({ ok: false, message: message || "Webinar not found" });
           }
@@ -370,52 +387,64 @@ module.exports = () => {
     }
   });
 
-  // --- Attendee Management Routes ---
+  // --- Participant Management Routes ---
 
   /**
    * @swagger
-   * /api/v1/webinars/{id}/register:
+   * /api/v1/webinars/{id}/participants:
    *   post:
-   *     summary: Register for a webinar
-   *     description: Add the authenticated user to the webinar's attendees list
-   *     tags: [webinars]
-   *     // security: 
-   *     //   - bearerAuth: [] # Requires user to be logged in
+   *     summary: Add participants to a webinar
+   *     description: Register one or more users for a webinar
+   *     tags: [Webinars]
+   *     security:
+   *       - bearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id
    *         required: true
    *         schema: { type: string }
-   *         description: The ID of the webinar to register for
+   *         description: The ID of the webinar
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               userIds:
+   *                 type: array
+   *                 items:
+   *                   type: string
+   *                 description: Array of user IDs to register for the webinar
    *     responses:
    *       200:
-   *         description: Successfully registered for the webinar
+   *         description: Successfully registered users for the webinar
    *         content:
    *           application/json:
-   *             schema: { $ref: '#/components/schemas/webinarResponse' } # Returns updated webinar
+   *             schema: { $ref: '#/components/schemas/webinarResponse' }
    *       400:
-   *         description: Already registered or other issue
-   *       401:
-   *         description: Unauthorized (user not logged in)
+   *         description: Invalid request or webinar at capacity
    *       404:
    *         description: Webinar not found
    *       500:
    *         description: Server error
    */
-   // Add middleware like isAuthenticated if needed
-   api.get("/:id/join",verifyToken, async (req, res) => {
+   api.post("/:id/participants", async (req, res) => {
        try {
            const { id } = req.params;
-           const userId = req.user.id; 
-           console.log("userId >>>", userId)// Get user ID from authentication token
-           // const userId = req.body.userId; // TEMPORARY: Get from body until auth is set up
-            if (!userId) return res.status(400).json({ ok: false, message: "User ID is required for registration."}) 
+           const { userIds } = req.body;
+           
+           if (!userIds || (Array.isArray(userIds) && userIds.length === 0)) {
+             return res.status(400).json({ ok: false, message: "At least one user ID is required" });
+           }
             
-           const { ok, data, message } = await webinarController.joinWebinar(id, userId);
+           const { ok, data, message } = await webinarController.addParticipantsWebinar(id, userIds);
            if (ok) {
                res.status(200).json({ ok, data, message });
            } else {
-               res.status(message === "Webinar not found" ? 404 : 400).json({ ok, message });
+               let statusCode = 400;
+               if (message === "Webinar not found") statusCode = 404;
+               res.status(statusCode).json({ ok, message });
            }
        } catch (error) {
            res.status(500).json({ ok: false, message: error.message });
@@ -424,47 +453,60 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/webinars/{id}/unregister:
-   *   delete: # Using DELETE for unregistration action
-   *     summary: Unregister from a webinar
-   *     description: Remove the authenticated user from the webinar's attendees list
-   *     tags: [webinars]
-   *     // security:
-   *     //   - bearerAuth: [] # Requires user to be logged in
+   * /api/v1/webinars/{id}/participants:
+   *   delete:
+   *     summary: Remove participants from a webinar
+   *     description: Unregister one or more users from a webinar
+   *     tags: [Webinars]
+   *     security:
+   *       - bearerAuth: []
    *     parameters:
    *       - in: path
    *         name: id
    *         required: true
    *         schema: { type: string }
-   *         description: The ID of the webinar to unregister from
+   *         description: The ID of the webinar
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               userIds:
+   *                 type: array
+   *                 items:
+   *                   type: string
+   *                 description: Array of user IDs to unregister from the webinar
    *     responses:
    *       200:
-   *         description: Successfully unregistered from the webinar
+   *         description: Successfully unregistered users from the webinar
    *         content:
    *           application/json:
-   *             schema: { $ref: '#/components/schemas/webinarResponse' } # Returns updated webinar
+   *             schema: { $ref: '#/components/schemas/webinarResponse' }
    *       400:
-   *         description: Not registered or other issue
-   *       401:
-   *         description: Unauthorized (user not logged in)
+   *         description: Invalid request
    *       404:
    *         description: Webinar not found
    *       500:
    *         description: Server error
    */
-   // Add middleware like isAuthenticated if needed
-   api.delete("/:id/unregister", async (req, res) => {
+   api.delete("/:id/participants", async (req, res) => {
        try {
            const { id } = req.params;
-           // const userId = req.user._id; // Get user ID from authentication token
-           const userId = req.body.userId; // TEMPORARY: Get from body until auth is set up
-            if (!userId) return res.status(400).json({ ok: false, message: "User ID is required for unregistration."}) 
+           const { userIds } = req.body;
+           
+           if (!userIds || (Array.isArray(userIds) && userIds.length === 0)) {
+             return res.status(400).json({ ok: false, message: "At least one user ID is required" });
+           }
             
-           const { ok, data, message } = await webinarController.unregisterUserFromwebinar(id, userId);
-            if (ok) {
+           const { ok, data, message } = await webinarController.unregisterUsersFromWebinar(id, userIds);
+           if (ok) {
                res.status(200).json({ ok, data, message });
            } else {
-               res.status(message === "Webinar not found" ? 404 : 400).json({ ok, message });
+               let statusCode = 400;
+               if (message === "Webinar not found") statusCode = 404;
+               res.status(statusCode).json({ ok, message });
            }
        } catch (error) {
            res.status(500).json({ ok: false, message: error.message });
@@ -473,11 +515,11 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/webinars/{id}/jitsi-token:
+   * /api/v1/webinars/{id}/join:
    *   get:
-   *     summary: Generate Jitsi meeting token
-   *     description: Generate a JWT token for accessing a Jitsi meeting for this webinar
-   *     tags: [webinars]
+   *     summary: Join a webinar
+   *     description: Generate a token and meeting details to join a webinar
+   *     tags: [Webinars]
    *     security:
    *       - bearerAuth: []
    *     parameters:
@@ -495,7 +537,7 @@ module.exports = () => {
    *         description: Buffer minutes to add to token expiration
    *     responses:
    *       200:
-   *         description: Token generated successfully
+   *         description: Successfully joined webinar
    *         content:
    *           application/json:
    *             schema:
@@ -531,6 +573,9 @@ module.exports = () => {
    *                       type: string
    *                       format: date-time
    *                       description: Webinar end time
+   *                     jitsiUrl:
+   *                       type: string
+   *                       description: Jitsi server URL
    *                 message:
    *                   type: string
    *       401:
@@ -542,14 +587,12 @@ module.exports = () => {
    *       500:
    *         description: Server error
    */
-  api.get("/:id/jitsi-token", async (req, res) => {
+  api.get("/:id/join", async (req, res) => {
     try {
       const { id } = req.params;
       const bufferMinutes = parseInt(req.query.bufferMinutes) || 30;
       
-      // Get user ID from auth token (assuming middleware sets req.user)
-      // Adjust this according to your authentication setup
-      const userId = req.user ? req.user._id : null;
+      const userId = req.user.id;
       
       if (!userId) {
         return res.status(401).json({ 
@@ -558,12 +601,11 @@ module.exports = () => {
         });
       }
       
-      const { ok, data, message } = await webinarController.generateJitsiToken(id, userId, bufferMinutes);
+      const { ok, data, message } = await webinarController.joinWebinar(id, userId, bufferMinutes);
       
       if (ok) {
         res.status(200).json({ ok, data, message });
       } else {
-        // Return appropriate error code based on message
         if (message.includes("not found")) {
           res.status(404).json({ ok, message });
         } else if (message.includes("not eligible")) {
@@ -577,5 +619,113 @@ module.exports = () => {
     }
   });
 
+  // Backward compatibility routes
+  
+  /**
+   * @swagger
+   * /api/v1/webinars/{id}/register:
+   *   post:
+   *     summary: Register current user for a webinar
+   *     description: Add the authenticated user to the webinar's participants
+   *     tags: [Webinars]
+   *     deprecated: true
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *         description: The ID of the webinar
+   *     responses:
+   *       200:
+   *         description: Successfully registered for the webinar
+   *         content:
+   *           application/json:
+   *             schema: { $ref: '#/components/schemas/webinarResponse' }
+   *       400:
+   *         description: Already registered or other issue
+   *       401:
+   *         description: Unauthorized
+   *       404:
+   *         description: Webinar not found
+   *       500:
+   *         description: Server error
+   */
+   api.post("/:id/register", async (req, res) => {
+       try {
+           const { id } = req.params;
+           const userId = req.user.id;
+           
+           if (!userId) {
+             return res.status(401).json({ ok: false, message: "Authentication required" });
+           }
+            
+           const { ok, data, message } = await webinarController.addParticipantsWebinar(id, userId);
+           if (ok) {
+               res.status(200).json({ ok, data, message });
+           } else {
+               let statusCode = 400;
+               if (message === "Webinar not found") statusCode = 404;
+               res.status(statusCode).json({ ok, message });
+           }
+       } catch (error) {
+           res.status(500).json({ ok: false, message: error.message });
+       }
+   });
+
+  /**
+   * @swagger
+   * /api/v1/webinars/{id}/unregister:
+   *   delete:
+   *     summary: Unregister current user from a webinar
+   *     description: Remove the authenticated user from the webinar's participants
+   *     tags: [Webinars]
+   *     deprecated: true
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *         description: The ID of the webinar
+   *     responses:
+   *       200:
+   *         description: Successfully unregistered from the webinar
+   *         content:
+   *           application/json:
+   *             schema: { $ref: '#/components/schemas/webinarResponse' }
+   *       400:
+   *         description: Not registered or other issue
+   *       401:
+   *         description: Unauthorized
+   *       404:
+   *         description: Webinar not found
+   *       500:
+   *         description: Server error
+   */
+   api.delete("/:id/unregister", async (req, res) => {
+       try {
+           const { id } = req.params;
+           const userId = req.user.id;
+           
+           if (!userId) {
+             return res.status(401).json({ ok: false, message: "Authentication required" });
+           }
+            
+           const { ok, data, message } = await webinarController.unregisterUsersFromWebinar(id, userId);
+           if (ok) {
+               res.status(200).json({ ok, data, message });
+           } else {
+               let statusCode = 400;
+               if (message === "Webinar not found") statusCode = 404;
+               res.status(statusCode).json({ ok, message });
+           }
+       } catch (error) {
+           res.status(500).json({ ok: false, message: error.message });
+       }
+   });
+
   return api;
-}; 
+};

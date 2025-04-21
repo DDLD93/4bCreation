@@ -68,7 +68,7 @@ const WebinarSchema = new Schema({
         default: Date.now
       }
     }],
-    allowedClusters: [{
+    clusters: [{
       type: Schema.Types.ObjectId,
       ref: 'Cluster',
       index: true

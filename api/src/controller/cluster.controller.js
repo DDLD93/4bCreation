@@ -1,5 +1,6 @@
+const mongoose = require('mongoose');
 const ClusterModel = require("../model/cluster.model");
-// const WebnarModel = require("../model/webnar.model"); // For potential cleanup if needed
+const WebinarModel = require("../model/webinar.model");
 
 class ClusterController {
   constructor() {
@@ -36,21 +37,18 @@ class ClusterController {
       if (options.select) {
           query = query.select(options.select);
       }
-      
+
       query = query.sort(sort).skip(skip).limit(limit);
 
-      // Option to populate webinars associated with the cluster
-      if (options.populate === 'webinars') {
-          query = query.populate('webinars'); // Populate the webinars field
-      } else if (options.populate) {
-          // Handle other potential population needs if they arise
+      // Cannot populate 'webinars' directly as it's not on the Cluster model.
+      // To get associated webinars, query WebinarModel separately: WebinarModel.find({ clusters: clusterId })
+      if (options.populate) {
+          // Handle other potential population needs (e.g., createdBy, members)
           query = query.populate(options.populate);
       }
-      
-      // Optionally count associated webinars without full population
-      if (options.countWebinars) {
-           query = query.addFields({ webinarCount: { $size: "$webinars" } });
-      }
+
+      // Cannot count webinars directly via addFields as 'webinars' field doesn't exist.
+      // To get count, query WebinarModel separately: WebinarModel.countDocuments({ clusters: clusterId })
 
       const total = await ClusterModel.countDocuments(filter);
       const clusters = await query.exec();
@@ -81,21 +79,18 @@ class ClusterController {
   async getClusterById(id, options = {}) {
     try {
       let query = ClusterModel.findById(id);
-      
-       // Option to populate webinars associated with the cluster
-      if (options.populate === 'webinars') {
-          query = query.populate('webinars'); // Populate the webinars field
-      } else if (options.populate) {
+
+       // Cannot populate 'webinars' directly as it's not on the Cluster model.
+       // To get associated webinars, query WebinarModel separately: WebinarModel.find({ clusters: id })
+      if (options.populate) {
           query = query.populate(options.populate);
       }
-      
-      // Optionally count associated webinars without full population
-      if (options.countWebinars) {
-           query = query.addFields({ webinarCount: { $size: "$webinars" } });
-      }
+
+      // Cannot count webinars directly via addFields as 'webinars' field doesn't exist.
+      // To get count, query WebinarModel separately: WebinarModel.countDocuments({ clusters: id })
 
       const cluster = await query.exec();
-      
+
       if (!cluster) {
         return { ok: false, message: "Cluster not found" };
       }
@@ -108,9 +103,7 @@ class ClusterController {
 
   async updateCluster(id, newData) {
     try {
-      // Ensure webinars array is not directly overwritten if provided
-      delete newData.webinars;
-      
+      // Cluster model doesn't have a 'webinars' field, so no need to delete it from newData.
       const updatedCluster = await ClusterModel.findByIdAndUpdate(id, newData, { new: true, runValidators: true });
       return { ok: true, data: updatedCluster, message: updatedCluster ? "Cluster updated successfully" : "Cluster not found" };
     } catch (error) {
@@ -122,28 +115,131 @@ class ClusterController {
     }
   }
 
+  async addClusterMembers(id, members) {
+    try {
+      // Validate cluster ID
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return { ok: false, message: "Invalid Cluster ID format" };
+      }
+
+      // Ensure members is an array
+      const memberArray = Array.isArray(members) ? members : [members];
+      
+      // Validate all member IDs
+      for (const memberId of memberArray) {
+        if (!mongoose.Types.ObjectId.isValid(memberId)) {
+          return { ok: false, message: `Invalid Member ID format: ${memberId}` };
+        }
+      }
+
+      // Check if cluster exists
+      const cluster = await ClusterModel.findById(id);
+      if (!cluster) {
+        return { ok: false, message: "Cluster not found" };
+      }
+
+      // Filter out members who are already in the cluster
+      const existingMembers = cluster.members.map(m => m.toString());
+      const newMembers = memberArray.filter(m => !existingMembers.includes(m));
+
+      if (newMembers.length === 0) {
+        return { ok: true, data: cluster, message: "All members are already in the cluster" };
+      }
+
+      // Add members to the cluster
+      const updatedCluster = await ClusterModel.findByIdAndUpdate(
+        id,
+        { $addToSet: { members: { $each: newMembers } } },
+        { new: true, runValidators: true }
+      ).populate('members');
+
+      return { 
+        ok: true, 
+        data: updatedCluster, 
+        message: `Successfully added ${newMembers.length} members to the cluster` 
+      };
+    } catch (error) {
+      console.log("Error adding cluster members:", error.message);
+      return { ok: false, message: error.message };
+    }
+  }
+
+  async removeClusterMembers(id, members) {
+    try {
+      // Validate cluster ID
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return { ok: false, message: "Invalid Cluster ID format" };
+      }
+
+      // Ensure members is an array
+      const memberArray = Array.isArray(members) ? members : [members];
+      
+      // Validate all member IDs
+      for (const memberId of memberArray) {
+        if (!mongoose.Types.ObjectId.isValid(memberId)) {
+          return { ok: false, message: `Invalid Member ID format: ${memberId}` };
+        }
+      }
+
+      // Check if cluster exists first
+      const cluster = await ClusterModel.findById(id);
+      if (!cluster) {
+        return { ok: false, message: "Cluster not found" };
+      }
+
+      const updatedCluster = await ClusterModel.findByIdAndUpdate(
+        id,
+        { $pull: { members: { $in: memberArray } } },
+        { new: true, runValidators: true }
+      );
+
+      return { 
+        ok: true, 
+        data: updatedCluster, 
+        message: `Successfully removed members from the cluster` 
+      };
+    } catch (error) {
+      console.log("Error removing cluster members:", error.message);
+      return { ok: false, message: error.message };
+    }
+  }
+
+  // async addWebinarsToCluster(clusterId, webinarIds) {
+  //   try {
+  //     const updatedCluster = await ClusterModel.findByIdAndUpdate(
+  //       clusterId,
+  //       { $addToSet: { webinars: { $each: webinarIds } } },
+  //       { new: true, runValidators: true }
+  //     );
+
+  //     if (!updatedCluster) {
+  //       return { ok: false, message: "Cluster not found" };
+  //     }
+
+  //     return { ok: true, data: updatedCluster, message: "Webinars added successfully" };
+  //   } catch (error) {
+  //     console.log("Error adding webinars to cluster:", error.message);
+  //     return { ok: false, message: error.message };
+  //   }
+  // }
+
+  // Prevent deletion if cluster has associated webinars
   async deleteCluster(id) {
     try {
-      // IMPORTANT: Decide how to handle webinars associated with the deleted cluster.
-      // Option 1: Delete associated webinars (cascade delete - potentially dangerous)
-      // Option 2: Set cluster field to null in associated webinars
-      // Option 3: Prevent deletion if cluster has webinars
-      
       const cluster = await ClusterModel.findById(id);
       if (!cluster) {
           return { ok: false, message: "Cluster not found" };
       }
-      
-      if (cluster.webinars && cluster.webinars.length > 0) {
-          // Option 3 implementation: Prevent deletion
-           return { ok: false, message: `Cannot delete cluster '${cluster.name}' because it has associated webinars. Please reassign or delete them first.` };
-           
-          // Option 2 implementation: Nullify reference in Webinars (requires WebnarModel)
-          // await WebnarModel.updateMany({ cluster: id }, { $set: { cluster: null } });
+
+      // Check if any webinar references this cluster in its 'clusters' array
+      const webinarCount = await WebinarModel.countDocuments({ clusters: id });
+
+      if (webinarCount > 0) {
+          return { ok: false, message: `Cannot delete cluster '${cluster.name}' because it has ${webinarCount} associated webinar(s). Please reassign them first.` };
       }
-      
+
       const deletedCluster = await ClusterModel.findByIdAndDelete(id);
-      
+
       return { ok: true, data: deletedCluster, message: deletedCluster ? "Cluster deleted successfully" : "Cluster not found" };
     } catch (error) {
       console.log("Error deleting cluster:", error.message);
@@ -155,4 +251,4 @@ class ClusterController {
   // but this is handled by the Webinar controller currently.
 }
 
-module.exports = new ClusterController(); 
+module.exports = new ClusterController();

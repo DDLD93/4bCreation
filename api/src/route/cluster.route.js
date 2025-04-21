@@ -22,15 +22,18 @@ const ClusterController = require("../controller/cluster.controller");
  *         description:
  *           type: string
  *           description: Optional description for the cluster
- *         webinars: # Assuming this holds references to webinars
+ *         members:
  *           type: array
  *           items:
- *             type: string # Assuming ObjectId references to Webinar documents
- *             description: ID of a webinar belonging to this cluster
- *           description: List of webinars associated with this cluster
- *         webinarCount: # Dynamically added field via controller
- *             type: integer
- *             description: Count of webinars in this cluster (added via query option)
+ *             type: string
+ *             description: ID of a user belonging to this cluster
+ *           description: List of users in this cluster
+ *         createdBy:
+ *           type: string
+ *           description: ID of the admin who created this cluster
+ *         isActive:
+ *           type: boolean
+ *           description: Whether the cluster is active
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -121,7 +124,7 @@ module.exports = () => {
    * /api/v1/clusters:
    *   get:
    *     summary: Get all clusters
-   *     description: Retrieve a list of clusters with filters, pagination, and optional webinar details
+   *     description: Retrieve a list of clusters with filters and pagination
    *     tags: [Clusters]
    *     parameters:
    *       - in: query
@@ -144,12 +147,8 @@ module.exports = () => {
    *         description: Select specific fields (space-separated)
    *       - in: query
    *         name: populate
-   *         schema: { type: string, enum: [webinars] }
-   *         description: Populate associated webinars
-   *       - in: query
-   *         name: countWebinars
-   *         schema: { type: boolean }
-   *         description: Include a count of associated webinars
+   *         schema: { type: string, example: members createdBy }
+   *         description: Populate related entities (space-separated)
    *     responses:
    *       200:
    *         description: Successfully retrieved clusters
@@ -162,8 +161,8 @@ module.exports = () => {
    */
   api.get("/", async (req, res) => {
     try {
-      const { page, limit, sort, select, populate, countWebinars, ...filter } = req.query;
-      const options = { page, limit, sort, select, populate, countWebinars: countWebinars === 'true' };
+      const { page, limit, sort, select, populate, ...filter } = req.query;
+      const options = { page, limit, sort, select, populate };
       if (options.sort) {
           const parts = options.sort.split(':');
           options.sort = { [parts[0]]: parseInt(parts[1]) };
@@ -186,7 +185,7 @@ module.exports = () => {
    * /api/v1/clusters/{id}:
    *   get:
    *     summary: Get cluster by ID
-   *     description: Retrieve a specific cluster, optionally populating/counting webinars
+   *     description: Retrieve a specific cluster
    *     tags: [Clusters]
    *     parameters:
    *       - in: path
@@ -196,12 +195,8 @@ module.exports = () => {
    *         description: Cluster ID
    *       - in: query
    *         name: populate
-   *         schema: { type: string, enum: [webinars] }
-   *         description: Populate associated webinars
-   *       - in: query
-   *         name: countWebinars
-   *         schema: { type: boolean }
-   *         description: Include a count of associated webinars
+   *         schema: { type: string, example: members createdBy }
+   *         description: Populate related entities (space-separated)
    *     responses:
    *       200:
    *         description: Cluster retrieved successfully
@@ -217,8 +212,8 @@ module.exports = () => {
   api.get("/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const { populate, countWebinars } = req.query;
-      const options = { populate, countWebinars: countWebinars === 'true' };
+      const { populate } = req.query;
+      const options = { populate };
       const { ok, data, message } = await ClusterController.getClusterById(id, options);
       if (ok) {
         res.status(200).json({ ok, message, data });
@@ -256,7 +251,8 @@ module.exports = () => {
    *                 type: string
    *               description:
    *                 type: string
-   *             # Exclude webinars array from direct update via this route
+   *               isActive:
+   *                 type: boolean
    *     responses:
    *       200:
    *         description: Cluster updated successfully
@@ -280,8 +276,7 @@ module.exports = () => {
     try {
       const { id } = req.params;
       const body = req.body;
-      // Controller already prevents webinar array updates
-
+      
       const { ok, data, message } = await ClusterController.updateCluster(id, body);
       if (ok) {
           if (data) {
@@ -294,6 +289,134 @@ module.exports = () => {
         let statusCode = 400; // Default bad request
         if (message.includes('not found')) statusCode = 404;
         if (message.includes('already exists')) statusCode = 409; // Conflict
+        res.status(statusCode).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /api/v1/clusters/{id}/members:
+   *   post:
+   *     summary: Add members to a cluster
+   *     description: Add one or more members to a cluster
+   *     tags: [Clusters]
+   *     // security:
+   *     //   - bearerAuth: [] # If admin only
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *         description: Cluster ID
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               members:
+   *                 type: array
+   *                 items:
+   *                   type: string
+   *                 description: Array of user IDs to add as members
+   *     responses:
+   *       200:
+   *         description: Members added successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ClusterResponse'
+   *       404:
+   *         description: Cluster not found
+   *       400:
+   *         description: Invalid member IDs
+   *       500:
+   *         description: Server error
+   */
+  api.post("/:id/members", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { members } = req.body;
+      
+      if (!members || (Array.isArray(members) && members.length === 0)) {
+        return res.status(400).json({ ok: false, message: "Members array is required" });
+      }
+      
+      const { ok, data, message } = await ClusterController.addClusterMembers(id, members);
+      
+      if (ok) {
+        res.status(200).json({ ok, data, message });
+      } else {
+        let statusCode = 400;
+        if (message.includes('not found')) statusCode = 404;
+        res.status(statusCode).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /api/v1/clusters/{id}/members:
+   *   delete:
+   *     summary: Remove members from a cluster
+   *     description: Remove one or more members from a cluster
+   *     tags: [Clusters]
+   *     // security:
+   *     //   - bearerAuth: [] # If admin only
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *         description: Cluster ID
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               members:
+   *                 type: array
+   *                 items:
+   *                   type: string
+   *                 description: Array of user IDs to remove as members
+   *     responses:
+   *       200:
+   *         description: Members removed successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ClusterResponse'
+   *       404:
+   *         description: Cluster not found
+   *       400:
+   *         description: Invalid member IDs
+   *       500:
+   *         description: Server error
+   */
+  api.delete("/:id/members", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { members } = req.body;
+      
+      if (!members || (Array.isArray(members) && members.length === 0)) {
+        return res.status(400).json({ ok: false, message: "Members array is required" });
+      }
+      
+      const { ok, data, message } = await ClusterController.removeClusterMembers(id, members);
+      
+      if (ok) {
+        res.status(200).json({ ok, data, message });
+      } else {
+        let statusCode = 400;
+        if (message.includes('not found')) statusCode = 404;
         res.status(statusCode).json({ ok, message });
       }
     } catch (error) {
@@ -356,4 +479,4 @@ module.exports = () => {
   });
 
   return api;
-}; 
+};

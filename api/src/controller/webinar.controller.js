@@ -1,23 +1,18 @@
-const webinarModel = require("../model/webinar.model"); // Corrected filename
-const ClusterModel = require("../model/cluster.model"); // Needed for potential cluster updates
-const UserModel = require("../model/user.model"); // Needed for user validation
+const webinarModel = require("../model/webinar.model");
+const ClusterModel = require("../model/cluster.model");
+const UserModel = require("../model/user.model");
 const jwt = require("jsonwebtoken");
 const { jitsiUrl, jitsiApiKey } = require("../config");
+const mongoose = require('mongoose');
 
 class webinarController {
-  constructor() {
-  }
+  constructor() {}
 
   async createwebinar(body) {
     try {
       const newwebinar = new webinarModel(body);
       await newwebinar.save();
-      
-      // Optional: If creating a webinar should update the associated cluster
-      if (newwebinar.cluster) {
-         await ClusterModel.findByIdAndUpdate(newwebinar.cluster, { $addToSet: { webinars: newwebinar._id } });
-      }
-      
+
       return {
         ok: true,
         data: newwebinar,
@@ -34,46 +29,41 @@ class webinarController {
       const page = parseInt(options.page) || 1;
       const limit = parseInt(options.limit) || 50;
       const skip = (page - 1) * limit;
-      const sort = options.sort || { startTime: 1 }; // Default sort by start time ascending
+      const sort = options.sort || { startTime: 1 };
 
       let query = webinarModel.find(filter);
 
       if (options.select) {
-          query = query.select(options.select);
+        query = query.select(options.select);
       }
-      
+
       query = query.sort(sort).skip(skip).limit(limit);
 
       if (options.populate) {
-          query = query.populate(options.populate); // e.g., populate 'cluster', 'presenter'
+        query = query.populate(options.populate);
       }
 
-      // Specific filter for upcoming or past webinars based on current time
       const now = new Date();
       if (options.timeFilter === 'upcoming') {
         query = query.where('startTime').gte(now);
-        // Ensure ascending sort for upcoming
-        if(!options.sort) query = query.sort({ startTime: 1 }); 
+        if (!options.sort) query = query.sort({ startTime: 1 });
       } else if (options.timeFilter === 'past') {
         query = query.where('startTime').lt(now);
-         // Ensure descending sort for past
-        if(!options.sort) query = query.sort({ startTime: -1 });
+        if (!options.sort) query = query.sort({ startTime: -1 });
       }
 
       const total = await webinarModel.countDocuments(filter);
-      // Re-apply time filter to countDocuments if necessary for accurate total
-       let countFilter = { ...filter };
-       if (options.timeFilter === 'upcoming') {
-           countFilter.startTime = { $gte: now };
-       } else if (options.timeFilter === 'past') {
-           countFilter.startTime = { $lt: now };
-       }
+      let countFilter = { ...filter };
+      if (options.timeFilter === 'upcoming') {
+        countFilter.startTime = { $gte: now };
+      } else if (options.timeFilter === 'past') {
+        countFilter.startTime = { $lt: now };
+      }
       const filteredTotal = await webinarModel.countDocuments(countFilter);
 
       const webinars = await query.exec();
 
-      // Use filteredTotal for pagination if timeFilter is applied
-      const paginationTotal = options.timeFilter ? filteredTotal : total; 
+      const paginationTotal = options.timeFilter ? filteredTotal : total;
       const totalPages = Math.ceil(paginationTotal / limit);
       const hasNext = page < totalPages;
       const hasPrev = page > 1;
@@ -88,7 +78,6 @@ class webinarController {
           limit,
           hasNext,
           hasPrev,
-          // Optionally include the grand total if different
           ...(options.timeFilter && { grandTotal: total })
         },
         message: `Found ${webinars.length} webinars (page ${page} of ${totalPages})`
@@ -103,7 +92,7 @@ class webinarController {
     try {
       let query = webinarModel.findById(id);
       if (options.populate) {
-          query = query.populate(options.populate);
+        query = query.populate(options.populate);
       }
       const webinar = await query.exec();
       if (!webinar) {
@@ -118,25 +107,8 @@ class webinarController {
 
   async updatewebinar(id, newData) {
     try {
-      // Handle potential cluster change: remove from old, add to new
-      const oldwebinar = await webinarModel.findById(id).select('cluster');
-      const oldClusterId = oldwebinar ? oldwebinar.cluster : null;
-      const newClusterId = newData.cluster;
-
       const updatedwebinar = await webinarModel.findByIdAndUpdate(id, newData, { new: true, runValidators: true });
 
-      if (updatedwebinar) {
-          // If cluster changed, update both old and new clusters
-          if (oldClusterId && newClusterId && oldClusterId.toString() !== newClusterId.toString()) {
-              await ClusterModel.findByIdAndUpdate(oldClusterId, { $pull: { webinars: id } });
-              await ClusterModel.findByIdAndUpdate(newClusterId, { $addToSet: { webinars: id } });
-          } else if (oldClusterId && !newClusterId) { // Removed from cluster
-               await ClusterModel.findByIdAndUpdate(oldClusterId, { $pull: { webinars: id } });
-          } else if (!oldClusterId && newClusterId) { // Added to cluster
-               await ClusterModel.findByIdAndUpdate(newClusterId, { $addToSet: { webinars: id } });
-          }
-      } 
-      
       return { ok: true, data: updatedwebinar, message: updatedwebinar ? "Webinar updated successfully" : "Webinar not found" };
     } catch (error) {
       console.log("Error updating webinar:", error.message);
@@ -146,12 +118,8 @@ class webinarController {
 
   async deletewebinar(id) {
     try {
-      // Also remove webinar reference from its cluster
       const deletedwebinar = await webinarModel.findByIdAndDelete(id);
-      if (deletedwebinar && deletedwebinar.cluster) {
-          await ClusterModel.findByIdAndUpdate(deletedwebinar.cluster, { $pull: { webinars: deletedwebinar._id } });
-      }
-      // TODO: Consider deleting related Quizzes, Interactions, etc. or handle via hooks.
+
       return { ok: true, data: deletedwebinar, message: deletedwebinar ? "Webinar deleted successfully" : "Webinar not found" };
     } catch (error) {
       console.log("Error deleting webinar:", error.message);
@@ -159,172 +127,241 @@ class webinarController {
     }
   }
 
-  // Add specific methods: register user, unregister user, get attendees, etc.
-  async registerUserForwebinar(webinarId, userId) {
-        try {
-            const updatedwebinar = await webinarModel.findByIdAndUpdate(
-                webinarId,
-                { $addToSet: { attendees: userId } }, // Use $addToSet to avoid duplicates
-                { new: true }
-            );
-            if (!updatedwebinar) return { ok: false, message: "Webinar not found" };
-            // TODO: Add interaction log if needed
-            return { ok: true, data: updatedwebinar, message: "User registered successfully" };
-        } catch (error) {
-            console.log("Error registering user for webinar:", error.message);
-            return { ok: false, message: error.message };
+  async addParticipantsWebinar(webinarId, userIds) {
+    try {
+      // Validate webinarId
+      if (!mongoose.Types.ObjectId.isValid(webinarId)) {
+        return { ok: false, message: "Invalid Webinar ID format" };
+      }
+
+      // Ensure userIds is an array
+      const userIdArray = Array.isArray(userIds) ? userIds : [userIds];
+      
+      // Validate all userIds
+      for (const userId of userIdArray) {
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+          return { ok: false, message: `Invalid User ID format: ${userId}` };
         }
-  }
+      }
 
-  async unregisterUserFromwebinar(webinarId, userId) {
-        try {
-            const updatedwebinar = await webinarModel.findByIdAndUpdate(
-                webinarId,
-                { $pull: { attendees: userId } },
-                { new: true }
-            );
-             if (!updatedwebinar) return { ok: false, message: "Webinar not found" };
-            // TODO: Add interaction log if needed
-            return { ok: true, data: updatedwebinar, message: "User unregistered successfully" };
-        } catch (error) {
-            console.log("Error unregistering user from webinar:", error.message);
-            return { ok: false, message: error.message };
-        }
-  }
+      // Fetch webinar
+      const webinar = await webinarModel.findById(webinarId).select('participants maxCapacity participantCount');
+      if (!webinar) return { ok: false, message: "Webinar not found" };
 
-    /**
-     * Generate a JWT token for Jitsi meeting access
-     * @param {string} webinarId - The ID of the webinar
-     * @param {string} userId - The ID of the user requesting access
-     * @param {number} bufferMinutes - Extra minutes to add to token expiration (default: 30)
-     * @param {Object} customClaims - Additional claims to include in the JWT
-     * @returns {Object} Response containing token and meeting details or error
-     */
-  async joinWebinar(webinarId, userId, bufferMinutes = 30, customClaims = {}) {
-        try {
-            // Get webinar with populated allowedClusters
-            const webinar = await webinarModel.findById(webinarId)
-                .populate('allowedClusters')
-                .populate('participants.user');
-            
-            if (!webinar) {
-                return { ok: false, message: "Webinar not found" };
-            }
-            
-            // Get user with populated clusters
-            const user = await UserModel.findById(userId).populate('ministry department');
-            const roomName  = `${jitsiApiKey}/${webinar._id}`;
-            
-            if (!user) {
-                return { ok: false, message: "User not found" };
-            }
-            
-            // Check user eligibility
-            const isParticipant = webinar.participants.some(p => p.user._id.toString() === userId);
-            const isAllowedByClusters = webinar.allowedClusters.some(cluster => {
-                // Check if user belongs to this cluster (based on your cluster membership logic)
-                // This is a placeholder - adjust according to your application's logic
-                return (
-                    user.ministry && cluster.ministry === user.ministry ||
-                    user.department && cluster.department === user.department
-                );
-            });
-            const isSpeaker = webinar.speaker && webinar.speaker.toString() === userId;
-            
-            // if (!isParticipant && !isAllowedByClusters && !isSpeaker) {
-            //     return { ok: false, message: "User is not eligible to join this webinar" };
-            // }
-            
-            // Generate room name using webinar ID (ensuring it's URL-friendly)
-            
-            // Determine token expiration
-            const now = new Date();
-            let expTime;
-            
-            if (now < webinar.startTime) {
-                // If webinar hasn't started, token expires at end time + buffer
-                expTime = new Date(webinar.endTime);
-                expTime.setMinutes(expTime.getMinutes() + bufferMinutes);
-            } else if (now > webinar.endTime) {
-                // If webinar has ended, token expires in short buffer time (for late access)
-                expTime = new Date();
-                expTime.setMinutes(expTime.getMinutes() + bufferMinutes);
-            } else {
-                // During the webinar, token expires at end time + buffer
-                expTime = new Date(webinar.endTime);
-                expTime.setMinutes(expTime.getMinutes() + bufferMinutes);
-            }
-            
-            // Calculate expiration in seconds from now (for JWT)
-            const expiresIn = Math.floor((expTime - now) / 1000);
+      // Check capacity
+      if (webinar.participantCount + userIdArray.length > webinar.maxCapacity) {
+        return { 
+          ok: false, 
+          message: `Webinar cannot accommodate all users. Current capacity: ${webinar.participantCount}/${webinar.maxCapacity}, Attempting to add: ${userIdArray.length}`
+        };
+      }
 
-            const token = this.generateJitsiToken(jitsiApiKey, { id: userId, name: user.fullName, email: user.email, avatar: user.picture, appId: webinar._id, roomName });	
-            
-            // Update participant record with attendance information
-            if (isParticipant && !isSpeaker) {
-                // Find participant in the array
-                const participantIndex = webinar.participants.findIndex(
-                    p => p.user._id.toString() === userId
-                );
-                
-                if (participantIndex !== -1) {
-                    // Update attendance info
-                    webinar.participants[participantIndex].attended = true;
-                    webinar.participants[participantIndex].attendanceTime = now;
-                    
-                    // Save the updated webinar
-                    await webinar.save();
-                }
-            }
-            
-            return {
-                ok: true,
-                data: {
-                    token,
-                    roomName,
-                    webinarTitle: webinar.title,
-                    userRole: isSpeaker ? "moderator" : "participant",
-                    expiresAt: expTime,
-                    startTime: webinar.startTime,
-                    endTime: webinar.endTime,
-                    jitsiUrl
-                    
-                },
-                message: "Jitsi token generated successfully"
-            };
-        } catch (error) {
-            console.log("Error generating Jitsi token:", error.message);
-            return { ok: false, message: error.message };
-        }
-    }
+      // Filter out already registered users
+      const existingUserIds = webinar.participants.map(p => p.user.toString());
+      const newUserIds = userIdArray.filter(id => !existingUserIds.includes(id));
+      
+      if (newUserIds.length === 0) {
+        return { ok: true, data: webinar, message: "All users are already registered" };
+      }
 
-     generateJitsiToken(privateKey, { id, name, email, avatar, appId, kid, roomName }) {
-      const now = new Date()
-      const token = jwt.sign({
-        aud: 'jitsi',
-        context: {
-          user: {
-            id,
-            name,
-            avatar,
-            email: email,
-            moderator: 'true'
-          },
-          // features: {
-          //   livestreaming: 'true',
-          //   recording: 'true',
-          //   transcription: 'true',
-          //   "outbound-call": 'true'
-          // }
+      // Create participant objects for each new user
+      const now = new Date();
+      const newParticipants = newUserIds.map(userId => ({
+        user: userId,
+        registered: now
+      }));
+
+      // Update webinar with new participants
+      const updatedwebinar = await webinarModel.findByIdAndUpdate(
+        webinarId,
+        {
+          $push: { participants: { $each: newParticipants } }
         },
-        iss: 'chat',
-        room: roomName || '*',
-        sub: appId,
-        exp: Math.round(now.setHours(now.getHours() + 3) / 1000),
-        nbf: (Math.round((new Date).getTime() / 1000) - 10)
-      }, privateKey, { header: { kid:"vpaas-magic-cookie-bb1143e33f2d4a85a60e8240004d730c/47dd12" } })
-      return token;
+        { new: true, runValidators: true }
+      ).populate('participants.user');
+
+      if (!updatedwebinar) return { ok: false, message: "Webinar not found during update" };
+
+      return { 
+        ok: true, 
+        data: updatedwebinar, 
+        message: `Successfully registered ${newUserIds.length} users for the webinar`
+      };
+    } catch (error) {
+      console.log("Error registering users for webinar:", error.message);
+      return { ok: false, message: error.message };
     }
+  }
+
+  async removeParticipantsFromWebinar(webinarId, userIds) {
+    try {
+      // Validate webinarId
+      if (!mongoose.Types.ObjectId.isValid(webinarId)) {
+        return { ok: false, message: "Invalid Webinar ID format" };
+      }
+
+      // Ensure userIds is an array
+      const userIdArray = Array.isArray(userIds) ? userIds : [userIds];
+      
+      // Validate all userIds
+      for (const userId of userIdArray) {
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+          return { ok: false, message: `Invalid User ID format: ${userId}` };
+        }
+      }
+
+      // Fetch webinar to check if it exists
+      const webinar = await webinarModel.findById(webinarId);
+      if (!webinar) return { ok: false, message: "Webinar not found" };
+
+      // Remove all specified users from participants
+      const updatedwebinar = await webinarModel.findByIdAndUpdate(
+        webinarId,
+        {
+          $pull: { participants: { user: { $in: userIdArray } } }
+        },
+        { new: true }
+      );
+
+      return { 
+        ok: true, 
+        data: updatedwebinar, 
+        message: `Successfully unregistered users from the webinar`
+      };
+    } catch (error) {
+      console.log("Error unregistering users from webinar:", error.message);
+      return { ok: false, message: error.message };
+    }
+  }
+
+
+  async joinWebinar(webinarId, userId, bufferMinutes = 30, customClaims = {}) {
+    try {
+      const webinar = await webinarModel.findById(webinarId)
+        .populate('clusters')
+        .populate('participants.user');
+
+      if (!webinar) {
+        return { ok: false, message: "Webinar not found" };
+      }
+
+      const user = await UserModel.findById(userId);
+
+      if (!user) {
+        return { ok: false, message: "User not found" };
+      }
+
+      const isSpeaker = webinar.speaker && webinar.speaker.toString() === userId;
+      const isParticipant = webinar.participants.some(p => p.user._id.toString() === userId);
+
+      let isAllowedByClusters = false;
+      if (webinar.clusters && webinar.clusters.length > 0) {
+        const clusterIds = webinar.clusters.map(c => c._id);
+        const matchingClusterCount = await ClusterModel.countDocuments({
+          _id: { $in: clusterIds },
+          members: userId
+        });
+        isAllowedByClusters = matchingClusterCount > 0;
+      }
+
+      if (!isParticipant && !isAllowedByClusters && !isSpeaker) {
+        return { ok: false, message: "User is not eligible to join this webinar" };
+      }
+
+      const roomName = `${jitsiApiKey}/${webinar._id}`;
+
+      const now = new Date();
+      let expTime;
+
+      if (now < webinar.startTime) {
+        expTime = new Date(webinar.endTime);
+        expTime.setMinutes(expTime.getMinutes() + bufferMinutes);
+      } else if (now > webinar.endTime) {
+        expTime = new Date();
+        expTime.setMinutes(expTime.getMinutes() + bufferMinutes);
+      } else {
+        expTime = new Date(webinar.endTime);
+        expTime.setMinutes(expTime.getMinutes() + bufferMinutes);
+      }
+
+      const expiresIn = Math.floor((expTime - now) / 1000);
+
+      const userRole = isSpeaker ? "moderator" : "participant";
+
+      const token = this.generateJitsiToken(jitsiApiKey, {
+        id: userId,
+        name: user.fullName,
+        email: user.email,
+        avatar: user.picture,
+        appId: webinar._id.toString(),
+        roomName: roomName,
+        isModerator: userRole === "moderator"
+      });
+
+      const participantIndex = webinar.participants.findIndex(
+        p => p.user._id.toString() === userId
+      );
+
+      if (participantIndex !== -1 && !webinar.participants[participantIndex].attended) {
+        webinar.participants[participantIndex].attended = true;
+        webinar.participants[participantIndex].attendanceTime = now;
+        await webinar.save();
+      } else if (participantIndex === -1 && isAllowedByClusters && !isSpeaker) {
+        webinar.participants.push({
+          user: userId,
+          registered: now,
+          attended: true,
+          attendanceTime: now
+        });
+        await webinar.save();
+      }
+
+      return {
+        ok: true,
+        data: {
+          token,
+          roomName,
+          webinarTitle: webinar.title,
+          userRole: userRole,
+          expiresAt: expTime,
+          startTime: webinar.startTime,
+          endTime: webinar.endTime,
+          jitsiUrl
+        },
+        message: "Jitsi token generated successfully"
+      };
+    } catch (error) {
+      console.log("Error generating Jitsi token:", error.message);
+      if (error instanceof jwt.JsonWebTokenError) {
+        return { ok: false, message: "Failed to generate meeting token." };
+      }
+      return { ok: false, message: error.message || "An unexpected error occurred while joining the webinar." };
+    }
+  }
+
+  generateJitsiToken(privateKey, { id, name, email, avatar, appId, kid, roomName, isModerator }) {
+    const now = new Date();
+    const headerKid = kid || `vpaas-magic-cookie-${appId}/${id}`;
+
+    const token = jwt.sign({
+      aud: 'jitsi',
+      context: {
+        user: {
+          id,
+          name,
+          avatar,
+          email: email,
+          moderator: isModerator ? 'true' : 'false'
+        },
+      },
+      iss: 'chat',
+      room: roomName || '*',
+      sub: appId,
+      exp: Math.round(now.setHours(now.getHours() + 3) / 1000),
+      nbf: (Math.round(Date.now() / 1000) - 10)
+    }, privateKey, { header: { kid: headerKid } });
+    return token;
+  }
 }
 
-module.exports = new webinarController(); 
+module.exports = new webinarController();

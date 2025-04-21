@@ -1,154 +1,58 @@
-const express = require('express');
+const express = require("express");
 const AdminController = require("../controller/admin.controller");
-// Uncomment when adding auth middleware
-// const { isAuthenticated, isAuthorized } = require("../middleware/auth");
+
+// const { base64toURL, rollbackUpload } = require("../middleware/upload.middleware");
 
 /**
  * @swagger
- * components:
- *   schemas:
- *     Admin:
- *       type: object
- *       required:
- *         - user
- *         - department
- *       properties:
- *         _id:
- *           type: string
- *           description: Auto-generated unique identifier
- *         user:
- *           type: string
- *           description: Reference to User model
- *         permissions:
- *           type: array
- *           items:
- *             type: string
- *             enum: [manage_users, manage_content, manage_quizes, manage_webnars, manage_certificates, view_analytics, full_access]
- *           description: List of admin permissions
- *         adminLevel:
- *           type: string
- *           enum: [junior, senior, super]
- *           description: Level of admin privileges
- *           default: junior
- *         department:
- *           type: string
- *           description: Department the admin belongs to
- *         dashboardAccess:
- *           type: boolean
- *           description: Whether admin has access to dashboard
- *           default: true
- *         canManageAdmins:
- *           type: boolean
- *           description: Whether admin can manage other admins
- *           default: false
- *         lastActivity:
- *           type: string
- *           format: date-time
- *           description: Timestamp of last admin activity
- *         notes:
- *           type: string
- *           description: Additional notes about the admin
- *         createdAt:
- *           type: string
- *           format: date-time
- *           description: Timestamp of record creation
- *         updatedAt:
- *           type: string
- *           format: date-time
- *           description: Timestamp of last update
- *     AdminResponse:
- *       type: object
- *       properties:
- *         ok:
- *           type: boolean
- *           description: Operation success status
- *         data:
- *           oneOf:
- *             - $ref: '#/components/schemas/Admin'
- *             - type: array
- *               items:
- *                 $ref: '#/components/schemas/Admin'
- *             - type: null
- *         message:
- *           type: string
- *           description: Response message
- *         pagination:
- *           type: object
- *           properties:
- *             total:
- *               type: integer
- *             totalPages:
- *               type: integer
- *             currentPage:
- *               type: integer
- *             limit:
- *               type: integer
- *             hasNext:
- *               type: boolean
- *             hasPrev:
- *               type: boolean
+ * tags:
+ *   name: Adminentication
+ *   description: admin Adminentication and management endpoints
  */
 
 module.exports = () => {
-  const api = express.Router();
+  const api = new express.Router();
 
   /**
    * @swagger
-   * /api/v1/admin:
+   * /admin/register:
    *   post:
-   *     summary: Create a new admin
-   *     description: Create a new admin account linked to an existing user
-   *     tags: [Admin]
-   *     security:
-   *       - bearerAuth: []
+   *     summary: Register a new admin
+   *     description: Create a new admin account. The admin will receive a welcome email with activation instructions.
+   *     tags: [Adminentication]
    *     requestBody:
    *       required: true
    *       content:
    *         application/json:
    *           schema:
-   *             type: object
-   *             required:
-   *               - user
-   *               - department
-   *             properties:
-   *               user:
-   *                 type: string
-   *                 description: User ID to link admin account to
-   *               permissions:
-   *                 type: array
-   *                 items:
-   *                   type: string
-   *                   enum: [manage_users, manage_content, manage_quizes, manage_webnars, manage_certificates, view_analytics, full_access]
-   *               adminLevel:
-   *                 type: string
-   *                 enum: [junior, senior, super]
-   *               department:
-   *                 type: string
-   *               dashboardAccess:
-   *                 type: boolean
-   *               canManageAdmins:
-   *                 type: boolean
-   *               notes:
-   *                 type: string
+   *             $ref: '#/components/schemas/adminInput'
    *     responses:
    *       201:
-   *         description: Admin created successfully
+   *         description: admin registered successfully
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/AdminResponse'
+   *               type: object
+   *               properties:
+   *                 ok:
+   *                   type: boolean
+   *                   example: true
+   *                 message:
+   *                   type: string
+   *                   example: Registration successful
+   *                 data:
+   *                   $ref: '#/components/schemas/adminResponse'
    *       400:
-   *         description: Invalid input data or duplicate entry
-   *       401:
-   *         description: Unauthorized
-   *       403:
-   *         description: Forbidden - insufficient permissions
+   *         description: Invalid input data or email already exists
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
-  // Add auth middleware when ready: isAuthenticated, isAuthorized(['admin', 'super'])
-  api.post("/", async (req, res) => {
+  api.post("/register", async (req, res) => {
     try {
       const body = req.body;
-      const { ok, data, message } = await AdminController.createAdmin(body);
+      const { ok, data, message } = await AdminController.register(body);
       if (!ok) throw new Error(message);
       res.status(201).json({ ok, data, message });
     } catch (error) {
@@ -158,73 +62,236 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/admin:
-   *   get:
-   *     summary: Get all admins
-   *     description: Retrieve a list of all admin accounts with pagination and filtering
-   *     tags: [Admin]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: query
-   *         name: page
-   *         schema:
-   *           type: integer
-   *           default: 1
-   *         description: Page number for pagination
-   *       - in: query
-   *         name: limit
-   *         schema:
-   *           type: integer
-   *           default: 50
-   *         description: Number of records per page
-   *       - in: query
-   *         name: sort
-   *         schema:
-   *           type: string
-   *           example: createdAt:-1
-   *         description: Sort order (field:1 for ascending, field:-1 for descending)
-   *       - in: query
-   *         name: adminLevel
-   *         schema:
-   *           type: string
-   *           enum: [junior, senior, super]
-   *         description: Filter by admin level
-   *       - in: query
-   *         name: department
-   *         schema:
-   *           type: string
-   *         description: Filter by department
+   * /admin/login:
+   *   post:
+   *     summary: admin login
+   *     description: Adminenticate a admin and return a JWT token
+   *     tags: [Adminentication]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/LoginInput'
    *     responses:
    *       200:
-   *         description: Successfully retrieved admins
+   *         description: Login successful
    *         content:
    *           application/json:
    *             schema:
-   *               $ref: '#/components/schemas/AdminResponse'
-   *       401:
-   *         description: Unauthorized
-   *       403:
-   *         description: Forbidden - insufficient permissions
+   *               $ref: '#/components/schemas/LoginResponse'
+   *       400:
+   *         description: Invalid credentials
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    *       500:
    *         description: Server error
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
-  api.get("/", async (req, res) => {
+  api.post("/login", async (req, res) => {
     try {
-      const { page, limit, sort, ...filter } = req.query;
-      const options = { page, limit, sort };
-      
-      if (options.sort) {
-        const parts = options.sort.split(':');
-        options.sort = { [parts[0]]: parseInt(parts[1]) };
-      } else {
-        options.sort = { createdAt: -1 };
-      }
-      
-      const { ok, data, pagination, message } = await AdminController.getAdmins(filter, options);
-      
+      const { email, password } = req.body;
+      const { ok, data, message } = await AdminController.login(email, password);
       if (ok) {
-        res.status(200).json({ ok, data, pagination, message });
+        res.status(200).json({ ok, data });
+      } else {
+        res.status(400).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /admin/verify-email:
+   *   post:
+   *     summary: Verify email address
+   *     description: Send a verification email to the admin
+   *     tags: [Adminentication]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/EmailInput'
+   *     responses:
+   *       200:
+   *         description: Verification email sent
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok:
+   *                   type: boolean
+   *                   example: true
+   *                 message:
+   *                   type: string
+   *       400:
+   *         description: Invalid email or admin not found
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   */
+  api.post("/verify-email", async (req, res) => {
+    try {
+      const { email } = req.body;
+      const { ok, message } = await AdminController.verifyEmail(email);
+      if (ok) {
+        res.status(200).json({ ok, message });
+      } else {
+        res.status(400).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /admin/refresh-token:
+   *   post:
+   *     summary: Refresh access token
+   *     description: Get a new access token using a refresh token
+   *     tags: [Adminentication]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/RefreshTokenInput'
+   *     responses:
+   *       200:
+   *         description: New access token generated
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok:
+   *                   type: boolean
+   *                   example: true
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     token:
+   *                       type: string
+   *       400:
+   *         description: Invalid refresh token
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   */
+  api.post("/refresh-token", async (req, res) => {
+    const { refreshToken, email } = req.body;
+    try {
+      const { ok, data, message } = await AdminController.getAccessToken(email, refreshToken);
+      if (ok) {
+        res.status(200).json({ ok, data });
+      } else {
+        res.status(400).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /admin/recover-account:
+   *   post:
+   *     summary: Recover account
+   *     description: Initiate account recovery process
+   *     tags: [Adminentication]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/EmailInput'
+   *     responses:
+   *       200:
+   *         description: Recovery instructions sent
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok:
+   *                   type: boolean
+   *                   example: true
+   *                 message:
+   *                   type: string
+   *       400:
+   *         description: Invalid email or account not found
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   */
+  api.post("/recover-account", async (req, res) => {
+    try {
+      const { email } = req.body;
+      const { ok, message } = await AdminController.recoverAccount(email);
+      if (ok) {
+        res.status(200).json({ ok, message });
+      } else {
+        res.status(400).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /admin/validate-code:
+   *   post:
+   *     summary: Validate OTP code
+   *     description: Validate a one-time password sent to admin's email
+   *     tags: [Adminentication]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/OtpInput'
+   *     responses:
+   *       200:
+   *         description: Code validated successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok:
+   *                   type: boolean
+   *                   example: true
+   *                 message:
+   *                   type: string
+   *                 data:
+   *                   type: object
+   *       500:
+   *         description: Invalid code or server error
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   */
+  api.post("/validate-code", async (req, res) => {
+    try {
+      const { email, otp } = req.body;
+      const { ok, data, message } = await AdminController.validateCode(otp, email);
+      if (ok) {
+        res.status(200).json({ ok, data, message });
       } else {
         res.status(500).json({ ok, message });
       }
@@ -235,323 +302,20 @@ module.exports = () => {
 
   /**
    * @swagger
-   * /api/v1/admin/{id}:
-   *   get:
-   *     summary: Get admin by ID
-   *     description: Retrieve a specific admin by ID
-   *     tags: [Admin]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *         description: Admin ID
-   *     responses:
-   *       200:
-   *         description: Successfully retrieved admin
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/AdminResponse'
-   *       401:
-   *         description: Unauthorized
-   *       403:
-   *         description: Forbidden - insufficient permissions
-   *       404:
-   *         description: Admin not found
-   *       500:
-   *         description: Server error
-   */
-  api.get("/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { ok, data, message } = await AdminController.getAdminById(id);
-      
-      if (ok) {
-        res.status(200).json({ ok, data, message });
-      } else {
-        res.status(data ? 500 : 404).json({ ok, message });
-      }
-    } catch (error) {
-      res.status(500).json({ ok: false, message: error.message });
-    }
-  });
-
-  /**
-   * @swagger
-   * /api/v1/admin/user/{userId}:
-   *   get:
-   *     summary: Get admin by user ID
-   *     description: Retrieve admin information for a specific user
-   *     tags: [Admin]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: userId
-   *         required: true
-   *         schema:
-   *           type: string
-   *         description: User ID
-   *     responses:
-   *       200:
-   *         description: Successfully retrieved admin
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/AdminResponse'
-   *       401:
-   *         description: Unauthorized
-   *       403:
-   *         description: Forbidden - insufficient permissions
-   *       404:
-   *         description: Admin not found for this user
-   *       500:
-   *         description: Server error
-   */
-  api.get("/user/:userId", async (req, res) => {
-    try {
-      const { userId } = req.params;
-      const { ok, data, message } = await AdminController.getAdminByUserId(userId);
-      
-      if (ok) {
-        res.status(200).json({ ok, data, message });
-      } else {
-        res.status(data ? 500 : 404).json({ ok, message });
-      }
-    } catch (error) {
-      res.status(500).json({ ok: false, message: error.message });
-    }
-  });
-
-  /**
-   * @swagger
-   * /api/v1/admin/{id}:
-   *   put:
-   *     summary: Update admin
-   *     description: Update an existing admin's information
-   *     tags: [Admin]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *         description: Admin ID
+   * /admin/activate-account:
+   *   post:
+   *     summary: Activate account
+   *     description: Activate a admin account with a token and set initial password
+   *     tags: [Adminentication]
    *     requestBody:
    *       required: true
    *       content:
    *         application/json:
    *           schema:
-   *             type: object
-   *             properties:
-   *               permissions:
-   *                 type: array
-   *                 items:
-   *                   type: string
-   *               adminLevel:
-   *                 type: string
-   *                 enum: [junior, senior, super]
-   *               department:
-   *                 type: string
-   *               dashboardAccess:
-   *                 type: boolean
-   *               canManageAdmins:
-   *                 type: boolean
-   *               notes:
-   *                 type: string
+   *             $ref: '#/components/schemas/TokenInput'
    *     responses:
    *       200:
-   *         description: Admin updated successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/AdminResponse'
-   *       400:
-   *         description: Invalid update data
-   *       401:
-   *         description: Unauthorized
-   *       403:
-   *         description: Forbidden - insufficient permissions
-   *       404:
-   *         description: Admin not found
-   *       500:
-   *         description: Server error
-   */
-  api.put("/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const updateData = req.body;
-      const { ok, data, message } = await AdminController.updateAdmin(id, updateData);
-      
-      if (ok) {
-        res.status(200).json({ ok, data, message });
-      } else {
-        res.status(data ? 400 : 404).json({ ok, message });
-      }
-    } catch (error) {
-      res.status(500).json({ ok: false, message: error.message });
-    }
-  });
-
-  /**
-   * @swagger
-   * /api/v1/admin/{id}/permissions:
-   *   patch:
-   *     summary: Update admin permissions
-   *     description: Update an admin's permissions
-   *     tags: [Admin]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *         description: Admin ID
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required:
-   *               - permissions
-   *             properties:
-   *               permissions:
-   *                 type: array
-   *                 items:
-   *                   type: string
-   *                   enum: [manage_users, manage_content, manage_quizes, manage_webnars, manage_certificates, view_analytics, full_access]
-   *     responses:
-   *       200:
-   *         description: Admin permissions updated successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/AdminResponse'
-   *       400:
-   *         description: Invalid permissions data
-   *       401:
-   *         description: Unauthorized
-   *       403:
-   *         description: Forbidden - insufficient permissions
-   *       404:
-   *         description: Admin not found
-   *       500:
-   *         description: Server error
-   */
-  api.patch("/:id/permissions", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { permissions } = req.body;
-      
-      if (!permissions || !Array.isArray(permissions)) {
-        return res.status(400).json({ 
-          ok: false, 
-          message: "Permissions must be provided as an array" 
-        });
-      }
-      
-      const { ok, data, message } = await AdminController.updatePermissions(id, permissions);
-      
-      if (ok) {
-        res.status(200).json({ ok, data, message });
-      } else {
-        res.status(data ? 400 : 404).json({ ok, message });
-      }
-    } catch (error) {
-      res.status(500).json({ ok: false, message: error.message });
-    }
-  });
-
-  /**
-   * @swagger
-   * /api/v1/admin/{id}:
-   *   delete:
-   *     summary: Delete admin
-   *     description: Delete an admin record (optionally revert user role)
-   *     tags: [Admin]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *         description: Admin ID
-   *       - in: query
-   *         name: revertUserRole
-   *         schema:
-   *           type: boolean
-   *           default: false
-   *         description: Whether to revert the user's role to 'participant'
-   *     responses:
-   *       200:
-   *         description: Admin deleted successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/AdminResponse'
-   *       401:
-   *         description: Unauthorized
-   *       403:
-   *         description: Forbidden - insufficient permissions
-   *       404:
-   *         description: Admin not found
-   *       500:
-   *         description: Server error
-   */
-  api.delete("/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const revertUserRole = req.query.revertUserRole === 'true';
-      
-      const { ok, message } = await AdminController.deleteAdmin(id, revertUserRole);
-      
-      if (ok) {
-        res.status(200).json({ ok, message });
-      } else {
-        res.status(404).json({ ok, message });
-      }
-    } catch (error) {
-      res.status(500).json({ ok: false, message: error.message });
-    }
-  });
-
-  /**
-   * @swagger
-   * /api/v1/admin/{id}/check-permission:
-   *   get:
-   *     summary: Check admin permission
-   *     description: Check if an admin has a specific permission
-   *     tags: [Admin]
-   *     security:
-   *       - bearerAuth: []
-   *     parameters:
-   *       - in: path
-   *         name: id
-   *         required: true
-   *         schema:
-   *           type: string
-   *         description: Admin ID
-   *       - in: query
-   *         name: permission
-   *         required: true
-   *         schema:
-   *           type: string
-   *           enum: [manage_users, manage_content, manage_quizes, manage_webnars, manage_certificates, view_analytics, full_access]
-   *         description: Permission to check
-   *     responses:
-   *       200:
-   *         description: Permission check successful
+   *         description: Account activated successfully
    *         content:
    *           application/json:
    *             schema:
@@ -559,40 +323,247 @@ module.exports = () => {
    *               properties:
    *                 ok:
    *                   type: boolean
+   *                   example: true
    *                 data:
+   *                   $ref: '#/components/schemas/adminResponse'
+   *       400:
+   *         description: Invalid token or password
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   */
+  api.post("/activate-account", async (req, res) => {
+    try {
+      const { password, token } = req.body;
+      const { ok, data, message } = await AdminController.activateAccount(token, password);
+      if (ok) {
+        res.status(200).json({ ok, data });
+      } else {
+        res.status(400).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /admin/reset-password:
+   *   post:
+   *     summary: Reset password
+   *     description: Reset admin password using a reset token
+   *     tags: [Adminentication]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/TokenInput'
+   *     responses:
+   *       200:
+   *         description: Password reset successful
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok:
    *                   type: boolean
-   *                   description: Whether admin has the permission
+   *                   example: true
+   *                 data:
+   *                   $ref: '#/components/schemas/adminResponse'
+   *       400:
+   *         description: Invalid token or password
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   */
+  api.post("/reset-password", async (req, res) => {
+    try {
+      const { password, token } = req.body;
+      const { ok, data, message } = await AdminController.resetPassword(token, password);
+      if (ok) {
+        res.status(200).json({ ok, data });
+      } else {
+        res.status(400).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /admin:
+   *   get:
+   *     summary: Get admins
+   *     description: Retrieve a list of admins with optional filters
+   *     tags: [Adminentication]
+   *     security:
+   *       - bearerAdmin: []
+   *     parameters:
+   *       - in: query
+   *         name: role
+   *         schema:
+   *           type: string
+   *           enum: [admin, Enumerator]
+   *         description: Filter admins by role
+   *       - in: query
+   *         name: status
+   *         schema:
+   *           type: string
+   *           enum: [pending, active, disable]
+   *         description: Filter admins by status
+   *       - in: query
+   *         name: isVerified
+   *         schema:
+   *           type: boolean
+   *         description: Filter admins by verification status
+   *     responses:
+   *       200:
+   *         description: List of admins retrieved successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok:
+   *                   type: boolean
+   *                   example: true
    *                 message:
    *                   type: string
-   *       400:
-   *         description: Missing or invalid permission parameter
-   *       401:
-   *         description: Unauthorized
-   *       403:
-   *         description: Forbidden - insufficient permissions
-   *       404:
-   *         description: Admin not found
+   *                 data:
+   *                   type: array
+   *                   items:
+   *                     $ref: '#/components/schemas/adminResponse'
    *       500:
    *         description: Server error
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
    */
-  api.get("/:id/check-permission", async (req, res) => {
+  api.get("/", async (req, res) => {
+    try {
+      const filter = req.query;
+      const { ok, data, message } = await AdminController.getadmins(filter);
+      if (ok) {
+        res.status(200).json({ ok, message, data });
+      } else {
+        res.status(500).json({ ok, message, data });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /admin/activate/{id}:
+   *   put:
+   *     summary: Activate admin (Admin only)
+   *     description: Activate a admin account by ID. Only accessible by administrators.
+   *     tags: [Adminentication]
+   *     security:
+   *       - bearerAdmin: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: admin ID
+   *     responses:
+   *       200:
+   *         description: admin activated successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok:
+   *                   type: boolean
+   *                   example: true
+   *                 message:
+   *                   type: string
+   *                 data:
+   *                   $ref: '#/components/schemas/adminResponse'
+   *       500:
+   *         description: Server error
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   */
+  api.put("/activate/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const { permission } = req.query;
-      
-      if (!permission) {
-        return res.status(400).json({ 
-          ok: false, 
-          message: "Permission parameter is required" 
-        });
-      }
-      
-      const { ok, data, message } = await AdminController.hasPermission(id, permission);
-      
+      const { ok, data, message } = await AdminController.updateadmin(id, { isVerified: true });
       if (ok) {
-        res.status(200).json({ ok, data, message });
+        res.status(200).json({ ok, message, data });
       } else {
-        res.status(404).json({ ok, message });
+        res.status(500).json({ ok, message, data });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /admin/{id}:
+   *   put:
+   *     summary: Update admin
+   *     description: Update admin information by ID
+   *     tags: [Adminentication]
+   *     security:
+   *       - bearerAdmin: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: admin ID
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             $ref: '#/components/schemas/adminInput'
+   *     responses:
+   *       200:
+   *         description: admin updated successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok:
+   *                   type: boolean
+   *                   example: true
+   *                 message:
+   *                   type: string
+   *                 data:
+   *                   $ref: '#/components/schemas/adminResponse'
+   *       500:
+   *         description: Server error
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   */
+  api.put("/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const body = req.body;
+      const { ok, data, message } = await AdminController.updateadmin(id, body);
+      if (ok) {
+        res.status(200).json({ ok, message, data });
+      } else {
+        res.status(500).json({ ok, message, data });
       }
     } catch (error) {
       res.status(500).json({ ok: false, message: error.message });
@@ -600,4 +571,4 @@ module.exports = () => {
   });
 
   return api;
-}; 
+};

@@ -1,276 +1,185 @@
 const AdminModel = require("../model/admin.model");
-const UserModel = require("../model/user.model");
 const jwt = require("jsonwebtoken");
+// const EmailController = require("./email.controller");
 const { jwtSecret } = require("../config");
 
 class AdminController {
   constructor() {
+    this.init();
   }
 
-  // Create a new admin (requires an existing user)
-  async createAdmin(body) {
+  async register(body) {
     try {
-      // Check if user exists and has appropriate role
-      const userId = body.user;
-      const user = await UserModel.findById(userId);
+      body.password = "root";
+      const newUser = new AdminModel(body);
+      await newUser.save();
+      newUser.password = "********";
+      const token = this.encodeToken({ email: newUser.email, role: newUser.role, id: newUser._id });
+      // await EmailController.welcomeEmailUser(newUser.email, token);
 
+      return { ok: true, data: newUser, message: "Registration successful" };
+    } catch (error) {
+      return this.handleDuplicateKeyError(error);
+    }
+  }
+
+  async login(email, password) {
+    try {
+      const user = await AdminModel.findOne({ email });
       if (!user) {
         throw new Error("User not found");
       }
-
-      // Update user role to admin if not already
-      if (user.role !== 'admin') {
-        await UserModel.findByIdAndUpdate(userId, { role: 'admin' });
+      if (user.status !== "active") {
+        throw new Error("User not activated or suspended");
       }
 
-      // Check if admin record already exists for this user
-      const existingAdmin = await AdminModel.findOne({ user: userId });
-      if (existingAdmin) {
-        throw new Error("Admin record already exists for this user");
+      const isValid = await user.isValidPassword(password);
+      if (!isValid) {
+        throw new Error("Invalid password");
       }
+      await user.postLogin()
 
-      // Create new admin record
-      const newAdmin = new AdminModel(body);
-      await newAdmin.save();
+      const token = this.encodeToken(
+        { email: user.email, role: user.role, id: user._id },
+        // { expiresIn: "1h" }
+      );
 
-      // Populate user information
-      const adminWithUser = await AdminModel.findById(newAdmin._id).populate('user', '-password');
-
-      return {
-        ok: true,
-        data: adminWithUser,
-        message: "Admin created successfully"
-      };
+      return { ok: true, data: { user, token }, message: "Login successful" };
     } catch (error) {
-      return this.handleError(error);
-    }
-  }
-
-  // Get all admins with pagination and filtering
-  async getAdmins(filter = {}, options = {}) {
-    try {
-      // Extract pagination parameters with defaults
-      const page = parseInt(options.page) || 1;
-      const limit = parseInt(options.limit) || 50;
-      const skip = (page - 1) * limit;
-
-      // Extract sorting parameters
-      const sort = options.sort || { createdAt: -1 }; // Default sort by creation date
-
-      // Count total documents for pagination metadata
-      const total = await AdminModel.countDocuments(filter);
-
-      // Get paginated results with user information
-      const admins = await AdminModel.find(filter)
-        .populate('user', '-password')
-        .sort(sort)
-        .skip(skip)
-        .limit(limit);
-
-      // Calculate pagination metadata
-      const totalPages = Math.ceil(total / limit);
-      const hasNext = page < totalPages;
-      const hasPrev = page > 1;
-
-      return {
-        ok: true,
-        data: admins,
-        pagination: {
-          total,
-          totalPages,
-          currentPage: page,
-          limit,
-          hasNext,
-          hasPrev
-        },
-        message: `Found ${admins.length} admins (page ${page} of ${totalPages})`
-      };
-    } catch (error) {
-      console.log("Error fetching admins:", error.message);
       return { ok: false, message: error.message };
     }
   }
 
-  // Get admin by ID
-  async getAdminById(id) {
+  async getUsers(filter) {
     try {
-      const admin = await AdminModel.findById(id).populate('user', '-password');
-      if (!admin) {
-        return { ok: false, message: "Admin not found" };
-      }
-      return { ok: true, data: admin, message: "Admin retrieved successfully" };
+      const users = await AdminModel.find(filter);
+      return { ok: true, data: users, message: "Users fetched successfully" };
     } catch (error) {
-      console.log("Error getting admin:", error.message);
+      console.log("Error fetching users:", error.message);
       return { ok: false, message: error.message };
     }
   }
 
-  // Get admin by user ID
-  async getAdminByUserId(userId) {
+  async updateUser(id, newData) {
     try {
-      const admin = await AdminModel.findOne({ user: userId }).populate('user', '-password');
-      if (!admin) {
-        return { ok: false, message: "Admin not found for this user" };
-      }
-      return { ok: true, data: admin, message: "Admin retrieved successfully" };
+      const user = await AdminModel.findByIdAndUpdate(id, newData, { new: true });
+      return { ok: true, data: user, message: user ? "User updated successfully" : "No record updated.. Data not found !!!" };
     } catch (error) {
-      console.log("Error getting admin by user ID:", error.message);
+      console.log("Error updating user:", error.message);
       return { ok: false, message: error.message };
     }
   }
 
-  // Update admin
-  async updateAdmin(id, updateData) {
+  
+  async recoverAccount(email) {
     try {
-      const admin = await AdminModel.findByIdAndUpdate(id, updateData, {
-        new: true,
-        runValidators: true
-      }).populate('user', '-password');
-
-      if (!admin) {
-        return { ok: false, message: "Admin not found" };
+      const account = await AdminModel.findOne({ email });
+      if (!account) {
+        throw new Error("Account not found");
       }
+      const token = this.encodeToken({ email: user.email, role: user.role, id: user._id }, { expiresIn: "1h" });
 
-      // Update last activity timestamp
-      admin.lastActivity = new Date();
-      await admin.save();
+      // await EmailController.forgetPasswordUser(email, token);
 
-      return { ok: true, data: admin, message: "Admin updated successfully" };
+      return { ok: true, message: "Instruction sent to your email" };
+      
     } catch (error) {
-      console.log("Error updating admin:", error.message);
+      console.log("Error Recovering Account:", error.message);
       return { ok: false, message: error.message };
     }
   }
 
-  // Update admin permissions
-  async updatePermissions(id, permissions) {
+  async resetPassword(token, password) {
     try {
-      const admin = await AdminModel.findById(id);
-
-      if (!admin) {
-        return { ok: false, message: "Admin not found" };
+      const { email } = await this.decodeToken(token)
+      const user = await AdminModel.findOne({ email });
+      if (!user) {
+        return { ok: false, message: "Account not found" };
       }
-
-      admin.permissions = permissions;
-      admin.lastActivity = new Date();
-      await admin.save();
-
-      const updatedAdmin = await AdminModel.findById(id).populate('user', '-password');
-
-      return { ok: true, data: updatedAdmin, message: "Admin permissions updated successfully" };
+      if (!password) {
+        return { ok: false, message: "Invalid password" };
+      }
+      await user.changePassword(password);
+      return { ok: true, data: user, message: "password changed succesfully" };
     } catch (error) {
-      console.log("Error updating admin permissions:", error.message);
       return { ok: false, message: error.message };
     }
   }
 
-  // Delete admin (optionally revert user role)
-  async deleteAdmin(id, revertUserRole = false) {
+  async activateAccount(token, password) {
     try {
-      const admin = await AdminModel.findById(id);
-
-      if (!admin) {
-        return { ok: false, message: "Admin not found" };
+      console.log({token, password})
+      const { email } = await this.decodeToken(token)
+      console.log({email})
+      const user = await AdminModel.findOne({ email });
+      if (!user) {
+        return { ok: false, message: "Account not found" };
       }
-
-      // Get user ID before deleting admin
-      const userId = admin.user;
-
-      // Delete admin record
-      await AdminModel.findByIdAndDelete(id);
-
-      // Optionally revert user role back to participant
-      if (revertUserRole) {
-        await UserModel.findByIdAndUpdate(userId, { role: 'participant' });
+      if (!password) {
+        return { ok: false, message: "Invalid password" };
       }
-
-      return { ok: true, message: "Admin deleted successfully" };
+      await user.activateUser(password);
+      return { ok: true, data: user, message: "password changed succesfully" };
     } catch (error) {
-      console.log("Error deleting admin:", error.message);
       return { ok: false, message: error.message };
     }
   }
 
-  // Check if admin has specific permission
-  async hasPermission(adminId, permission) {
+  encodeToken(payload, options = {}) {
+    return jwt.sign(payload, jwtSecret, options);
+  }
+
+  decodeToken(token) {
     try {
-      const admin = await AdminModel.findById(adminId);
-
-      if (!admin) {
-        return { ok: false, message: "Admin not found" };
-      }
-
-      // Full access permission grants all access
-      if (admin.permissions.includes('full_access')) {
-        return { ok: true, data: true, message: "Admin has full access" };
-      }
-
-      const hasPermission = admin.permissions.includes(permission);
-
-      return {
-        ok: true,
-        data: hasPermission,
-        message: hasPermission ?
-          `Admin has ${permission} permission` :
-          `Admin does not have ${permission} permission`
-      };
+      return jwt.verify(token, jwtSecret);
     } catch (error) {
-      console.log("Error checking admin permission:", error.message);
-      return { ok: false, message: error.message };
+      console.log("Token not verified:", error.message);
+      throw new Error(error.message);
     }
   }
 
-  // Seed an initial admin user if none exists
   async init() {
     try {
-      // Check if any admin exists
-      const adminCount = await AdminModel.countDocuments();
-      if (adminCount > 0) {
-        return { ok: true, message: "Admin already exists, skipping seeding." };
+      const adminUser = await AdminModel.findOne({ email: "admin@system.com" });
+      if (adminUser) {
+        console.log("Admin User found >>> Skipping seeding ::::");
+        return;
       }
-
-
-      // Create admin record
-      const adminData = {
-        user: user._id,
-        permissions: ['full_access'],
-        adminLevel: 'super',
-        department: 'Administration',
-        dashboardAccess: true,
-        canManageAdmins: true,
-        notes: 'Seeded super admin'
+      await AdminModel.ensureIndexes();
+      const adminObj = {
+        fullName: "super admin",
+        email: "admin@system.com",
+        phone: "08033445566",
+        state: "Kaduna",
+        lga: "Kudan",
+        address: "root",
+        city: "localhost",
+        password: "0987654321",
+        role: "admin",
+        status: "active",
+        isVerified: true
       };
-      
-      const admin = new AdminModel(adminData);
-      await admin.save();
-
+      const newAdmin = new AdminModel(adminObj);
+      const admin = await newAdmin.save({ isAdmin: true, validateBeforeSave: false });
+      console.log("Seeded new admin account:", admin);
     } catch (error) {
-      return this.handleError(error);
+      console.log("Error seeding admin account:", error.message);
     }
   }
 
-  // Handle errors
-  handleError(error) {
-    console.log("Admin controller error:", error.message);
-
-    // Handle duplicate key errors
-    if (error.code === 11000 || error.message.includes('duplicate')) {
-      return {
-        ok: false,
-        message: "Duplicate entry. This admin record already exists."
-      };
+  handleDuplicateKeyError(error) {
+    if (error.code === 11000) {
+      const matches = error.message.match(/index: (.+?) dup key: { (.+?) }/);
+      if (matches) {
+        const [, fieldName, fieldValue] = matches;
+        return { ok: false, message: `A user with the '${fieldValue}' already exists.` };
+      } else {
+        return { ok: false, message: "A duplicate value was provided. Please check your information." };
+      }
+    } else {
+      console.log("Error creating user:", error.message);
+      return { ok: false, message: error.message };
     }
-
-    // Handle validation errors
-    if (error.name === 'ValidationError') {
-      const messages = Object.values(error.errors).map(err => err.message);
-      return {
-        ok: false,
-        message: messages.join(', ')
-      };
-    }
-
-    return { ok: false, message: error.message };
   }
 }
 

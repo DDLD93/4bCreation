@@ -666,6 +666,7 @@ module.exports = () => {
   api.put("/activate/:id", async (req, res) => {
     try {
       const { id } = req.params;
+      console.log(id)
       const { ok, data, message } = await AuthController.updateUser(id, { status: 'active' });
       if (ok) {
         res.status(200).json({ ok, message, data });
@@ -753,20 +754,20 @@ module.exports = () => {
    *       500:
    *         description: Server error
    */
-  api.put("/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const body = req.body;
-      const { ok, data, message } = await AuthController.updateUser(id, body);
-      if (ok) {
-        res.status(200).json({ ok, message, data });
-      } else {
-        res.status(500).json({ ok, message, data });
-      }
-    } catch (error) {
-      res.status(500).json({ ok: false, message: error.message });
-    }
-  });
+  // api.put("/:id", async (req, res) => {
+  //   try {
+  //     const { id } = req.params;
+  //     const body = req.body;
+  //     const { ok, data, message } = await AuthController.updateUser(id, body);
+  //     if (ok) {
+  //       res.status(200).json({ ok, message, data });
+  //     } else {
+  //       res.status(500).json({ ok, message, data });
+  //     }
+  //   } catch (error) {
+  //     res.status(500).json({ ok: false, message: error.message });
+  //   }
+  // });
 
   return api;
 };

@@ -264,9 +264,9 @@ class webinarController {
         isAllowedByClusters = matchingClusterCount > 0;
       }
 
-      if (!isParticipant && !isAllowedByClusters && !isSpeaker) {
-        return { ok: false, message: "User is not eligible to join this webinar" };
-      }
+      // if (!isParticipant && !isAllowedByClusters && !isSpeaker) {
+      //   return { ok: false, message: "User is not eligible to join this webinar" };
+      // }
 
       const roomName = `${jitsiApiKey}/${webinar._id}`;
 

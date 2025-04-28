@@ -587,19 +587,14 @@ module.exports = () => {
    *       500:
    *         description: Server error
    */
-  api.get("/:id/join", async (req, res) => {
+  api.get("/:id/join",verifyToken, async (req, res) => {
     try {
       const { id } = req.params;
       const bufferMinutes = parseInt(req.query.bufferMinutes) || 30;
       
       const userId = req.user.id;
       
-      if (!userId) {
-        return res.status(401).json({ 
-          ok: false, 
-          message: "Authentication required" 
-        });
-      }
+ 
       
       const { ok, data, message } = await webinarController.joinWebinar(id, userId, bufferMinutes);
       

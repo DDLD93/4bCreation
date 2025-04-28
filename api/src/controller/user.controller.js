@@ -13,7 +13,6 @@ class UserController {
       const { otp, email } = body;
       if(!isAdmin) {
         const value = await redisCtrl.read(`4bcreation-code-register:${email}`);
-        console.log({value, otp});
         if (!value || value !== otp) throw new Error("Invalid or Expired code");
       }
       const newUser = new UserModel(body);
@@ -245,7 +244,6 @@ class UserController {
   }
 
   encodeToken(payload, options = {}) {
-    console.log({payload})
     return jwt.sign(payload, jwtSecret, options);
   }
 

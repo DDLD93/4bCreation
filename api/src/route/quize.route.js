@@ -1,5 +1,6 @@
 const express = require('express');
 const QuizeController = require("../controller/quize.controller");
+const { verifyToken } = require('../middleware/auth.middleware');
 
 // Swagger Definitions for Quiz - Adapt based on quize.model.js
 /**
@@ -210,18 +211,61 @@ module.exports = () => {
       const { page, limit, sort, select, populate, ...filter } = req.query;
       const options = { page, limit, sort, select, populate };
       if (options.sort) {
-          const parts = options.sort.split(':');
-          options.sort = { [parts[0]]: parseInt(parts[1]) };
+        const parts = options.sort.split(':');
+        options.sort = { [parts[0]]: parseInt(parts[1]) };
       } else {
-           options.sort = { createdAt: -1 };
+        options.sort = { createdAt: -1 };
       }
-       // Convert boolean string to actual boolean if present
+      // Convert boolean string to actual boolean if present
       if (filter.published !== undefined) {
-           filter.published = filter.published === 'true' || filter.published === '1';
+        filter.published = filter.published === 'true' || filter.published === '1';
       }
       const { ok, data, pagination, message } = await QuizeController.getQuizes(filter, options);
       if (ok) {
         res.status(200).json({ ok, message, data, pagination });
+      } else {
+        res.status(500).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /api/v1/quizes/webinar/{webinarId}:
+   *   get:
+   *     summary: Get quize by webinar ID
+   *     description: Retrieve a quize by webinar ID
+   *     tags: [Quizes]
+   *     parameters:
+   *       - in: path
+   *         name: webinarId
+   *         required: true
+   *         schema:
+   *           type: string
+   *       - in: query
+   *         name: userId
+   *         schema:
+   *           type: string
+   *         description: User ID
+   *     responses:
+   *       200: 
+   *         description: Successfully retrieved quize
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/QuizeResponse'
+   *       500:
+   *         description: Server error
+   */
+  api.get("/webinar/:webinarId", verifyToken, async (req, res) => {
+    try {
+      const { webinarId } = req.params;
+      const { userId } = req.query;
+      const { ok, data, message } = await QuizeController.getQuizesByWebinar(webinarId, userId);
+      if (ok) {
+        res.status(200).json({ ok, message, data });
       } else {
         res.status(500).json({ ok, message });
       }
@@ -323,11 +367,11 @@ module.exports = () => {
 
       const { ok, data, message } = await QuizeController.updateQuize(id, body);
       if (ok) {
-          if (data) {
-              res.status(200).json({ ok, message, data });
-          } else {
-              res.status(404).json({ ok: false, message: message || "Quiz not found" });
-          }
+        if (data) {
+          res.status(200).json({ ok, message, data });
+        } else {
+          res.status(404).json({ ok: false, message: message || "Quiz not found" });
+        }
       } else {
         // Distinguish between validation error (400) and other errors (500)
         res.status(message.includes('validation failed') ? 400 : 500).json({ ok, message });
@@ -373,11 +417,11 @@ module.exports = () => {
       const { id } = req.params;
       const { ok, data, message } = await QuizeController.deleteQuize(id);
       if (ok) {
-          if(data) {
-            res.status(200).json({ ok, message }); // Or 204 No Content
-          } else {
-            res.status(404).json({ ok: false, message: message || "Quiz not found" });
-          }
+        if (data) {
+          res.status(200).json({ ok, message }); // Or 204 No Content
+        } else {
+          res.status(404).json({ ok: false, message: message || "Quiz not found" });
+        }
       } else {
         res.status(500).json({ ok, message });
       }
@@ -422,20 +466,20 @@ module.exports = () => {
    *       500:
    *         description: Server error
    */
-   api.post("/:id/questions", async (req, res) => {
-       try {
-           const { id } = req.params;
-           const questionData = req.body;
-           const { ok, data, message } = await QuizeController.addQuestionToQuize(id, questionData);
-           if (ok) {
-               res.status(200).json({ ok, data, message });
-           } else {
-               res.status(message === "Quiz not found" ? 404 : 400).json({ ok, message });
-           }
-       } catch (error) {
-           res.status(500).json({ ok: false, message: error.message });
-       }
-   });
+  api.post("/:id/questions", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const questionData = req.body;
+      const { ok, data, message } = await QuizeController.addQuestionToQuize(id, questionData);
+      if (ok) {
+        res.status(200).json({ ok, data, message });
+      } else {
+        res.status(message === "Quiz not found" ? 404 : 400).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
 
   /**
    * @swagger
@@ -469,28 +513,28 @@ module.exports = () => {
    *       500:
    *         description: Server error
    */
-   api.delete("/:quizId/questions/:questionId", async (req, res) => {
-       try {
-           const { quizId, questionId } = req.params;
-           const { ok, data, message } = await QuizeController.removeQuestionFromQuize(quizId, questionId);
-            if (ok) {
-               // Check if the update actually removed something (might depend on controller logic)
-               // Here, we assume success if controller returns ok:true and data exists
-               if (data) {
-                   res.status(200).json({ ok, data, message });
-               } else {
-                   // This case might indicate the quiz was found but the question wasn't,
-                   // or the quiz itself wasn't found. Controller should clarify.
-                   res.status(404).json({ ok: false, message: message || "Quiz or Question not found" });
-               }
-           } else {
-                // If controller returns ok:false, assume quiz not found or other error
-               res.status(message === "Quiz not found" ? 404 : 500).json({ ok, message });
-           }
-       } catch (error) {
-           res.status(500).json({ ok: false, message: error.message });
-       }
-   });
+  api.delete("/:quizId/questions/:questionId", async (req, res) => {
+    try {
+      const { quizId, questionId } = req.params;
+      const { ok, data, message } = await QuizeController.removeQuestionFromQuize(quizId, questionId);
+      if (ok) {
+        // Check if the update actually removed something (might depend on controller logic)
+        // Here, we assume success if controller returns ok:true and data exists
+        if (data) {
+          res.status(200).json({ ok, data, message });
+        } else {
+          // This case might indicate the quiz was found but the question wasn't,
+          // or the quiz itself wasn't found. Controller should clarify.
+          res.status(404).json({ ok: false, message: message || "Quiz or Question not found" });
+        }
+      } else {
+        // If controller returns ok:false, assume quiz not found or other error
+        res.status(message === "Quiz not found" ? 404 : 500).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
 
   // TODO: Add routes for updating a specific question if needed
   // PUT /api/v1/quizes/{quizId}/questions/{questionId}

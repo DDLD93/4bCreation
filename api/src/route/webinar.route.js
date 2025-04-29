@@ -225,9 +225,9 @@ module.exports = () => {
       const { page, limit, sort, select, populate, timeFilter, ...filter } = req.query;
       const options = { page, limit, sort, select, populate, timeFilter };
       if (options.sort) {
-          const parts = options.sort.split(':');
-          options.sort = { [parts[0]]: parseInt(parts[1]) };
-      } 
+        const parts = options.sort.split(':');
+        options.sort = { [parts[0]]: parseInt(parts[1]) };
+      }
 
       const { ok, data, pagination, message } = await webinarController.getwebinars(filter, options);
       if (ok) {
@@ -330,11 +330,11 @@ module.exports = () => {
 
       const { ok, data, message } = await webinarController.updatewebinar(id, body);
       if (ok) {
-          if (data) {
-              res.status(200).json({ ok, message, data });
-          } else {
-              res.status(404).json({ ok: false, message: message || "Webinar not found" });
-          }
+        if (data) {
+          res.status(200).json({ ok, message, data });
+        } else {
+          res.status(404).json({ ok: false, message: message || "Webinar not found" });
+        }
       } else {
         res.status(message.includes('validation failed') ? 400 : 500).json({ ok, message });
       }
@@ -374,11 +374,11 @@ module.exports = () => {
       const { id } = req.params;
       const { ok, data, message } = await webinarController.deletewebinar(id);
       if (ok) {
-          if(data) {
-            res.status(200).json({ ok, message });
-          } else {
-            res.status(404).json({ ok: false, message: message || "Webinar not found" });
-          }
+        if (data) {
+          res.status(200).json({ ok, message });
+        } else {
+          res.status(404).json({ ok: false, message: message || "Webinar not found" });
+        }
       } else {
         res.status(500).json({ ok, message });
       }
@@ -429,27 +429,27 @@ module.exports = () => {
    *       500:
    *         description: Server error
    */
-   api.post("/:id/participants", async (req, res) => {
-       try {
-           const { id } = req.params;
-           const { userIds } = req.body;
-           
-           if (!userIds || (Array.isArray(userIds) && userIds.length === 0)) {
-             return res.status(400).json({ ok: false, message: "At least one user ID is required" });
-           }
-            
-           const { ok, data, message } = await webinarController.addParticipantsWebinar(id, userIds);
-           if (ok) {
-               res.status(200).json({ ok, data, message });
-           } else {
-               let statusCode = 400;
-               if (message === "Webinar not found") statusCode = 404;
-               res.status(statusCode).json({ ok, message });
-           }
-       } catch (error) {
-           res.status(500).json({ ok: false, message: error.message });
-       }
-   });
+  api.post("/:id/participants", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { userIds } = req.body;
+
+      if (!userIds || (Array.isArray(userIds) && userIds.length === 0)) {
+        return res.status(400).json({ ok: false, message: "At least one user ID is required" });
+      }
+
+      const { ok, data, message } = await webinarController.addParticipantsWebinar(id, userIds);
+      if (ok) {
+        res.status(200).json({ ok, data, message });
+      } else {
+        let statusCode = 400;
+        if (message === "Webinar not found") statusCode = 404;
+        res.status(statusCode).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
 
   /**
    * @swagger
@@ -491,27 +491,27 @@ module.exports = () => {
    *       500:
    *         description: Server error
    */
-   api.delete("/:id/participants", async (req, res) => {
-       try {
-           const { id } = req.params;
-           const { userIds } = req.body;
-           
-           if (!userIds || (Array.isArray(userIds) && userIds.length === 0)) {
-             return res.status(400).json({ ok: false, message: "At least one user ID is required" });
-           }
-            
-           const { ok, data, message } = await webinarController.unregisterUsersFromWebinar(id, userIds);
-           if (ok) {
-               res.status(200).json({ ok, data, message });
-           } else {
-               let statusCode = 400;
-               if (message === "Webinar not found") statusCode = 404;
-               res.status(statusCode).json({ ok, message });
-           }
-       } catch (error) {
-           res.status(500).json({ ok: false, message: error.message });
-       }
-   });
+  api.delete("/:id/participants", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { userIds } = req.body;
+
+      if (!userIds || (Array.isArray(userIds) && userIds.length === 0)) {
+        return res.status(400).json({ ok: false, message: "At least one user ID is required" });
+      }
+
+      const { ok, data, message } = await webinarController.unregisterUsersFromWebinar(id, userIds);
+      if (ok) {
+        res.status(200).json({ ok, data, message });
+      } else {
+        let statusCode = 400;
+        if (message === "Webinar not found") statusCode = 404;
+        res.status(statusCode).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
 
   /**
    * @swagger
@@ -587,17 +587,17 @@ module.exports = () => {
    *       500:
    *         description: Server error
    */
-  api.get("/:id/join",verifyToken, async (req, res) => {
+  api.get("/:id/join", verifyToken, async (req, res) => {
     try {
       const { id } = req.params;
       const bufferMinutes = parseInt(req.query.bufferMinutes) || 30;
-      
+
       const userId = req.user.id;
-      
- 
-      
+
+
+
       const { ok, data, message } = await webinarController.joinWebinar(id, userId, bufferMinutes);
-      
+
       if (ok) {
         res.status(200).json({ ok, data, message });
       } else {
@@ -615,7 +615,7 @@ module.exports = () => {
   });
 
   // Backward compatibility routes
-  
+
   /**
    * @swagger
    * /api/v1/webinars/{id}/register:
@@ -647,27 +647,27 @@ module.exports = () => {
    *       500:
    *         description: Server error
    */
-   api.post("/:id/register", async (req, res) => {
-       try {
-           const { id } = req.params;
-           const userId = req.user.id;
-           
-           if (!userId) {
-             return res.status(401).json({ ok: false, message: "Authentication required" });
-           }
-            
-           const { ok, data, message } = await webinarController.addParticipantsWebinar(id, userId);
-           if (ok) {
-               res.status(200).json({ ok, data, message });
-           } else {
-               let statusCode = 400;
-               if (message === "Webinar not found") statusCode = 404;
-               res.status(statusCode).json({ ok, message });
-           }
-       } catch (error) {
-           res.status(500).json({ ok: false, message: error.message });
-       }
-   });
+  api.post("/:id/register", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      if (!userId) {
+        return res.status(401).json({ ok: false, message: "Authentication required" });
+      }
+
+      const { ok, data, message } = await webinarController.addParticipantsWebinar(id, userId);
+      if (ok) {
+        res.status(200).json({ ok, data, message });
+      } else {
+        let statusCode = 400;
+        if (message === "Webinar not found") statusCode = 404;
+        res.status(statusCode).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
 
   /**
    * @swagger
@@ -700,27 +700,27 @@ module.exports = () => {
    *       500:
    *         description: Server error
    */
-   api.delete("/:id/unregister", async (req, res) => {
-       try {
-           const { id } = req.params;
-           const userId = req.user.id;
-           
-           if (!userId) {
-             return res.status(401).json({ ok: false, message: "Authentication required" });
-           }
-            
-           const { ok, data, message } = await webinarController.unregisterUsersFromWebinar(id, userId);
-           if (ok) {
-               res.status(200).json({ ok, data, message });
-           } else {
-               let statusCode = 400;
-               if (message === "Webinar not found") statusCode = 404;
-               res.status(statusCode).json({ ok, message });
-           }
-       } catch (error) {
-           res.status(500).json({ ok: false, message: error.message });
-       }
-   });
+  api.delete("/:id/unregister", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+
+      if (!userId) {
+        return res.status(401).json({ ok: false, message: "Authentication required" });
+      }
+
+      const { ok, data, message } = await webinarController.unregisterUsersFromWebinar(id, userId);
+      if (ok) {
+        res.status(200).json({ ok, data, message });
+      } else {
+        let statusCode = 400;
+        if (message === "Webinar not found") statusCode = 404;
+        res.status(statusCode).json({ ok, message });
+      }
+    } catch (error) {
+      res.status(500).json({ ok: false, message: error.message });
+    }
+  });
 
   return api;
 };

@@ -13,7 +13,6 @@ class UserController {
       const { otp, email } = body;
       if(!isAdmin) {
         const value = await redisCtrl.read(`4bcreation-code-register:${email}`);
-        console.log({value, otp});
         if (!value || value !== otp) throw new Error("Invalid or Expired code");
       }
       const newUser = new UserModel(body);
@@ -55,10 +54,11 @@ class UserController {
 
   async login(email, password, notificationId) {
     try {
-      const user = await UserModel.findOne({ email });
+      const user = await UserModel.findOne({ email })
       if (!user) {
         throw new Error("User not found");
       }
+
       
       const isValid = await user.isValidPassword(password);
       if (!isValid) {
@@ -70,7 +70,7 @@ class UserController {
       }
 
       if (user.status !== "active") {
-        throw new Error("User is not actived [Contact Admin]");
+        throw new Error("User is not activated [Contact Admin]");
       }
 
       // await user.postLogin(notificationId)
@@ -82,7 +82,7 @@ class UserController {
       const refreshToken = this.encodeToken(
         { email: user.email, role: user.role, id: user._id }
       );
-      await redisCtrl.write(`4bcreation-token::${user.email}`, refreshToken)
+      await redisCtrl.write(`4bcreation-token::${user.email}`, refreshToken);
 
       return { ok: true, data: { user, accessToken, refreshToken }, message: "Login successful" };
     } catch (error) {

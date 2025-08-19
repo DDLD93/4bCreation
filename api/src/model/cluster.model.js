@@ -19,7 +19,7 @@ const ClusterSchema = new Schema({
     }],
     createdBy: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'Admin',
       required: true,
       index: true
     },

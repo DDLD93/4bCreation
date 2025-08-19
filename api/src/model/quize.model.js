@@ -78,4 +78,47 @@ const QuizSchema = new Schema({
     next();
   });
 
+  // Virtual for getting attempts for a specific user
+  QuizSchema.virtual('userAttempts', {
+    ref: 'QuizAttempt',
+    localField: '_id',
+    foreignField: 'quiz',
+    justOne: false,
+    options: {
+      sort: { createdAt: -1 }
+    },
+    // Will be populated with specific user ID when needed
+    match: function(userId) {
+      if (userId) {
+        return { user: userId };
+      }
+      return {};
+    }
+  });
+
+  // Method to get quiz with user's attempt information
+  QuizSchema.methods.getWithUserAttempts = async function(userId) {
+    await this.populate({
+      path: 'userAttempts',
+      match: { user: userId },
+      options: { sort: { createdAt: -1 } }
+    });
+    
+    const quiz = this.toObject();
+    
+    // Add user-specific fields
+    quiz.hasPassed = quiz.userAttempts && 
+                    quiz.userAttempts.some(attempt => attempt.passed === true);
+    
+    quiz.latestAttempt = quiz.userAttempts && quiz.userAttempts.length > 0 ? 
+                        quiz.userAttempts[0] : null;
+    
+    quiz.totalAttempts = quiz.userAttempts ? quiz.userAttempts.length : 0;
+    
+    quiz.canAttempt = quiz.totalAttempts < quiz.maxAttempts && 
+                      (!quiz.hasPassed || quiz.allowRetakesAfterPassing);
+    
+    return quiz;
+  };
+
   module.exports = mongoose.model('Quiz', QuizSchema);

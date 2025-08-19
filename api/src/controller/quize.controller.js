@@ -1,4 +1,5 @@
 const QuizeModel = require("../model/quize.model"); // Corrected filename
+const QuizeAttemptModel = require("../model/quizeAttempt.model"); // Add QuizAttempt model
 
 class QuizeController {
   constructor() {
@@ -32,15 +33,15 @@ class QuizeController {
 
       // Select specific fields if provided
       if (options.select) {
-          query = query.select(options.select);
+        query = query.select(options.select);
       }
-      
+
       // Add sorting, skip, and limit
       query = query.sort(sort).skip(skip).limit(limit);
 
       // Optionally populate related fields
       if (options.populate) {
-          query = query.populate(options.populate); // e.g., populate 'cluster' or 'webinar'
+        query = query.populate(options.populate); // e.g., populate 'cluster' or 'webinar'
       }
 
       const total = await QuizeModel.countDocuments(filter);
@@ -72,14 +73,14 @@ class QuizeController {
   async getQuizeById(id, options = {}) {
     try {
       let query = QuizeModel.findById(id);
-      
+
       // Optionally populate related fields
       if (options.populate) {
-          query = query.populate(options.populate); // e.g., populate 'cluster' or 'webinar'
+        query = query.populate(options.populate); // e.g., populate 'cluster' or 'webinar'
       }
-      
+
       const quize = await query.exec();
-      
+
       if (!quize) {
         return { ok: false, message: "Quiz not found" };
       }
@@ -96,7 +97,7 @@ class QuizeController {
       return { ok: true, data: updatedQuize, message: updatedQuize ? "Quiz updated successfully" : "Quiz not found" };
     } catch (error) {
       console.log("Error updating quiz:", error.message);
-       // Handle validation errors specifically if needed
+      // Handle validation errors specifically if needed
       return { ok: false, message: error.message };
     }
   }
@@ -115,34 +116,69 @@ class QuizeController {
 
   // Add specific methods like adding/removing questions, publishing/unpublishing, etc.
   async addQuestionToQuize(quizId, questionData) {
-      try {
-          const updatedQuiz = await QuizeModel.findByIdAndUpdate(
-              quizId, 
-              { $push: { questions: questionData } },
-              { new: true, runValidators: true }
-          );
-          if (!updatedQuiz) return { ok: false, message: "Quiz not found" };
-          return { ok: true, data: updatedQuiz, message: "Question added successfully" };
-      } catch (error) {
-          console.log("Error adding question to quiz:", error.message);
-          return { ok: false, message: error.message };
-      }
+    try {
+      const updatedQuiz = await QuizeModel.findByIdAndUpdate(
+        quizId,
+        { $push: { questions: questionData } },
+        { new: true, runValidators: true }
+      );
+      if (!updatedQuiz) return { ok: false, message: "Quiz not found" };
+      return { ok: true, data: updatedQuiz, message: "Question added successfully" };
+    } catch (error) {
+      console.log("Error adding question to quiz:", error.message);
+      return { ok: false, message: error.message };
+    }
   }
 
-    async removeQuestionFromQuize(quizId, questionId) {
-        try {
-            const updatedQuiz = await QuizeModel.findByIdAndUpdate(
-                quizId, 
-                { $pull: { questions: { _id: questionId } } }, // Assumes questions have _id
-                { new: true }
-            );
-            if (!updatedQuiz) return { ok: false, message: "Quiz not found" };
-            return { ok: true, data: updatedQuiz, message: "Question removed successfully" };
-        } catch (error) {
-            console.log("Error removing question from quiz:", error.message);
-            return { ok: false, message: error.message };
-        }
+  async removeQuestionFromQuize(quizId, questionId) {
+    try {
+      const updatedQuiz = await QuizeModel.findByIdAndUpdate(
+        quizId,
+        { $pull: { questions: { _id: questionId } } }, // Assumes questions have _id
+        { new: true }
+      );
+      if (!updatedQuiz) return { ok: false, message: "Quiz not found" };
+      return { ok: true, data: updatedQuiz, message: "Question removed successfully" };
+    } catch (error) {
+      console.log("Error removing question from quiz:", error.message);
+      return { ok: false, message: error.message };
     }
+  }
+
+  async getQuizesByWebinar(webinarId, userId) {
+    try {
+      // Find all quizzes for the specified webinar
+      const quize = await QuizeModel.findOne({ webinar: webinarId });
+      
+      if (!quize) {
+        return { 
+          ok: true, 
+          data: null, 
+          message: "No quize found for this webinar" 
+        };
+      }
+      
+      // If no userId provided, return basic quiz data
+      if (!userId) {
+        return {
+          ok: true,
+          data: quize,
+          message: `Quize found for the webinar`
+        };
+      }
+      
+      // Process the quiz to include user attempt data
+      const enhancedQuiz = await quize.getWithUserAttempts(userId);
+      return {
+        ok: true,
+        data: enhancedQuiz,
+        message: `Quize found for the webinar`
+      };
+    } catch (error) {
+      console.log("Error retrieving quize by webinar:", error.message);
+      return { ok: false, message: error.message };
+    }
+  }
 }
 
 module.exports = new QuizeController(); 

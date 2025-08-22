@@ -20,7 +20,14 @@ const {
     GEMINI_API_KEY,
     GEMINI_MODEL_NAME,
     JITSI_URL,
-    JITSI_API_KEY
+    JITSI_API_KEY,
+    ZOHO_OAUTH_TOKEN_URL,
+    ZOHO_CLIENT_ID,
+    ZOHO_CLIENT_SECRET,
+    ZOHO_SCOPE,
+    ZOHO_REDIRECT_URI,
+    ZOHO_API_BASE_URL,
+    ZOHO_ORGNIZATION_ID
 } = process.env;
 
 module.exports = {
@@ -45,6 +52,14 @@ module.exports = {
     geminiApiKey: GEMINI_API_KEY,
     geminiModelName: GEMINI_MODEL_NAME,
     jitsiUrl: JITSI_URL,
-    jitsiApiKey: JITSI_API_KEY
+    jitsiApiKey: JITSI_API_KEY,
+
+    zohoOauthTokenUrl: ZOHO_OAUTH_TOKEN_URL,
+    zohoClientId: ZOHO_CLIENT_ID,
+    zohoSecrete: ZOHO_CLIENT_SECRET,
+    zohoScope: ZOHO_SCOPE,
+    zohoRedirectUrl: ZOHO_REDIRECT_URI,
+    zohoApiBaseUrl: ZOHO_API_BASE_URL,
+    zohoOrgnizationId: ZOHO_ORGNIZATION_ID,
 }
 

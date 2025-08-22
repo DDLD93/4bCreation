@@ -4,9 +4,79 @@ const UserModel = require("../model/user.model");
 const jwt = require("jsonwebtoken");
 const { jitsiUrl, jitsiApiKey } = require("../config");
 const mongoose = require('mongoose');
+const path = require('path');
+const fs = require('fs');
+const app = require('express')();
+const puppeteer = require('puppeteer');
 
 class webinarController {
   constructor() {}
+
+
+  async generateCertificate(webinarId, userId) {
+    try {
+      const webinar = await webinarModel.findById(webinarId);
+      if (!webinar) {
+        return { ok: false, message: "Webinar not found" };
+      }
+      const user = await UserModel.findById(userId);
+      if (!user) {
+        return { ok: false, message: "User not found" };
+      }
+      const backgroundFilePath = path.join(__dirname, 'layout.png');
+
+      let backgroundBase64 = '';
+      try {
+          const imageData = fs.readFileSync(backgroundFilePath);
+          backgroundBase64 = `data:image/png;base64,${imageData.toString('base64')}`;
+      } catch (error) {
+          console.error('Error reading background image:', error);
+          backgroundBase64 = '';
+      }
+
+      // Render the EJS template to HTML
+      const html = await app.render('certificate', {
+          name: user.fullName,
+          background: backgroundBase64
+      });
+
+      const htmlContent = await ejs.renderFile(path.join(__dirname, 'certificate.ejs'), {
+        name: user.fullName,
+        background: backgroundBase64
+      });
+
+      // Launch Puppeteer
+      const browser = await puppeteer.launch({
+          headless: 'new',
+          args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+      const page = await browser.newPage();
+
+      // Set content and wait for fonts to load
+      await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+      
+      // Wait a bit for fonts to render
+      await page.waitForTimeout(1000);
+
+      // Generate PDF with A4 dimensions
+      const pdf = await page.pdf({
+          format: 'A4',
+          printBackground: true,
+          margin: {
+              top: '0',
+              right: '0',
+              bottom: '0',
+              left: '0'
+          }
+      });
+
+      await browser.close();
+      return { ok: true, data: pdf, message: "Certificate generated successfully" };
+    } catch (error) {
+      console.log("Error generating certificate:", error.message);
+      return { ok: false, message: error.message };
+    }
+  }
 
   async createwebinar(body) {
     try {
